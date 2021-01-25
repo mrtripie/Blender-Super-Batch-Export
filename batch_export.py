@@ -19,6 +19,50 @@ bl_info = {
 }
 
 
+def export_selection(itemname, context):
+    prefs = context.preferences.addons[__name__].preferences
+    # save the transform to be reset later:
+    old_locations = []
+    old_rotations = []
+    old_scales = []
+    for obj in context.selected_objects:
+        old_locations.append(obj.location.copy())
+        old_rotations.append(obj.rotation_euler.copy())
+        old_scales.append(obj.scale.copy())
+
+        if prefs.set_location:
+            obj.location = prefs.location
+        if prefs.set_rotation:
+            obj.rotation_euler = prefs.rotation
+        if prefs.set_scale:
+            obj.scale = prefs.scale
+
+    # Some exporters only use the active object: #I think this isn't true anymore
+    # view_layer.objects.active = obj
+
+    base_dir = bpy.path.abspath(context.scene.batch_export_directory)
+    if not base_dir:
+        raise Exception("Directory is not set")
+    prefix = context.scene.batch_export_prefix
+    suffix = context.scene.batch_export_suffix
+    name = prefix + bpy.path.clean_name(itemname) + suffix
+    fp = os.path.join(base_dir, name)
+
+    # Export
+    bpy.ops.export_scene.gltf(
+        filepath=fp, use_selection=True)
+
+    # Reset the transform to what it was before
+    i = 0
+    for obj in context.selected_objects:
+        obj.location = old_locations[i]
+        obj.rotation_euler = old_rotations[i]
+        obj.scale = old_scales[i]
+        i += 1
+
+    print("written:", fp)
+
+
 class BatchExportPreferences(AddonPreferences):
     bl_idname = __name__
 
@@ -29,9 +73,9 @@ class BatchExportPreferences(AddonPreferences):
         ("STL", "STL (.stl)", "", 4),
         ("FBX", "FBX (.fbx)", "", 5),
         ("glTF", "glTF (.glb/.gltf)", "", 6),
-        #("glTF_B", "glTF Binary (Default) (.glb)", "", 6),
-        #("glTF_E", "glTF Embedded (.gltf)", "", 7),
-        #("glTF_S", "glTF Seperate (.gltf + .bin + textures)", "", 8),
+        # ("glTF_B", "glTF Binary (Default) (.glb)", "", 6),
+        # ("glTF_E", "glTF Embedded (.gltf)", "", 7),
+        # ("glTF_S", "glTF Seperate (.gltf + .bin + textures)", "", 8),
         ("OBJ", "Wavefront (.obj)", "", 7),
     ]
     export_modes = [
@@ -101,52 +145,28 @@ class EXPORT_MESH_OT_batch(Operator):
     def execute(self, context):
         prefs = context.preferences.addons[__name__].preferences
 
-        base_dir = bpy.path.abspath(context.scene.batch_export_directory)
-        if not base_dir:
-            raise Exception("Directory is not set")
-
         view_layer = context.view_layer
-
         obj_active = view_layer.objects.active
-        selection = bpy.context.selected_objects
+        selection = context.selected_objects
+
+        if prefs.mode == "OBJECTS":
+            # for obj in selection:
+            for obj in bpy.data.objects:
+                # check if selected/visible and continue to next
+                # loop iteration if not
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select_set(True)
+                export_selection(obj.name, context)
+
+        elif prefs.mode == "COLLECTIONS":
+            for col in bpy.data.collections.values():
+                bpy.ops.object.select_all(action='DESELECT')
+                for obj in col.objects:
+                    obj.select_set(True)
+                if context.selected_objects:
+                    export_selection(col.name, context)
 
         bpy.ops.object.select_all(action='DESELECT')
-
-        for obj in selection:
-            # save the transform to be reset later
-            old_location = obj.location.copy()
-            old_rotation = obj.rotation_euler.copy()
-            old_scale = obj.scale.copy()
-
-            if prefs.set_location:
-                obj.location = prefs.location
-            if prefs.set_rotation:
-                obj.rotation_euler = prefs.rotation
-            if prefs.set_scale:
-                obj.scale = prefs.scale
-
-            obj.select_set(True)
-
-            # Some exporters only use the active object
-            view_layer.objects.active = obj
-
-            prefix = context.scene.batch_export_prefix
-            suffix = context.scene.batch_export_suffix
-            name = prefix + bpy.path.clean_name(obj.name) + suffix
-            fp = os.path.join(base_dir, name)
-
-            # Export
-            bpy.ops.export_scene.gltf(
-                filepath=fp, use_selection=True)
-
-            # Reset the transform
-            obj.location = old_location
-            obj.rotation_euler = old_rotation
-            obj.scale = old_scale
-
-            obj.select_set(False)
-            print("written:", fp)
-
         view_layer.objects.active = obj_active
         for obj in selection:
             obj.select_set(True)
@@ -191,7 +211,7 @@ class VIEW3D_PT_batch_export_export_settings(Panel):
         col = self.layout.column(align=True)
         col.prop(prefs, "file_format")
         col.prop(prefs, "mode")
-        #col.prop(prefs, "apply_mods")
+        # col.prop(prefs, "apply_mods")
         col = self.layout.column(align=True, heading="Only")
         col.use_property_split = True
         col.prop(prefs, "selection_only", text="Selection")

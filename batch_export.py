@@ -79,8 +79,16 @@ class BatchExportPreferences(AddonPreferences):
         ("OBJ", "Wavefront (.obj)", "", 7),
     ]
     export_modes = [
-        ("OBJECTS", "Objects", "", 1),
-        ("COLLECTIONS", "Collections", "", 2),
+        ("OBJECTS", "Objects", "Each object is exported to its own file", 1),
+        ("OBJECT_PARENTS", "Objects by Parents",
+         "Same as 'Objects', but objects that are parents have their\nchildren exported with them instead of by themselves", 2),
+        ("COLLECTIONS", "Collections",
+         "Each collection is exported into its own file", 3),
+    ]
+    export_limits = [
+        ("NONE", "None", "", 1),
+        ("VISIBLE", "Visible", "", 2),
+        ("SELECTED", "Selected", "", 3),
     ]
 
     # Export Settings:
@@ -92,20 +100,26 @@ class BatchExportPreferences(AddonPreferences):
     mode: EnumProperty(
         name="Mode",
         items=export_modes,
-        default="OBJECTS",
+        default="OBJECT_PARENTS",
     )
     # apply_mods: BoolProperty(
     #    name="Apply Modifiers",
     #    default=True,
     # )
-    selection_only: BoolProperty(
-        name="Selection Only",
-        default=True,
+    limit: EnumProperty(
+        name="Limit",
+        items=export_limits,
+        default="VISIBLE",
     )
-    visible_only: BoolProperty(
-        name="Visible Only",
-        default=True,
-    )
+
+    # selection_only: BoolProperty(
+    #     name="Selection Only",
+    #     default=True,
+    # )
+    # visible_only: BoolProperty(
+    #     name="Visible Only",
+    #     default=True,
+    # )
 
     # Transform:
     set_location: BoolProperty(
@@ -152,7 +166,7 @@ class EXPORT_MESH_OT_batch(Operator):
         if prefs.mode == "OBJECTS":
             # for obj in selection:
             for obj in bpy.data.objects:
-                # check if selected/visible and continue to next
+                # check if it is a mesh/selected/visible and continue to next
                 # loop iteration if not
                 bpy.ops.object.select_all(action='DESELECT')
                 obj.select_set(True)
@@ -212,10 +226,11 @@ class VIEW3D_PT_batch_export_export_settings(Panel):
         col.prop(prefs, "file_format")
         col.prop(prefs, "mode")
         # col.prop(prefs, "apply_mods")
-        col = self.layout.column(align=True, heading="Only")
-        col.use_property_split = True
-        col.prop(prefs, "selection_only", text="Selection")
-        col.prop(prefs, "visible_only", text="Visible")
+        # col = self.layout.column(align=True, heading="Only")
+        # col.use_property_split = True
+        # col.prop(prefs, "selection_only", text="Selection")
+        # col.prop(prefs, "visible_only", text="Visible")
+        col.prop(prefs, "limit")
 
 
 class VIEW3D_PT_batch_export_transform(Panel):

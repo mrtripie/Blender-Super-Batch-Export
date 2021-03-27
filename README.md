@@ -3,7 +3,7 @@ Allows you to export multiple meshes in a blend file to separate files in one cl
 
 Found in right side panel of the 3d viewport under the Export tab.
 
-<img src="https://raw.githubusercontent.com/mrtripie/images/main/batch_export_screenshot.png?token=APTGQX267LXCIA4PSEEXMF3AL42XK" alt="drawing" width="234"/>
+<img src="https://raw.githubusercontent.com/mrtripie/images/main/batch_export_screenshot.png?token=APTGQX267LXCIA4PSEEXMF3AL42XK" width="234"/>
 
 ## Instructions:
 Batch Export button: Press after everything is set up to export your meshes to seperate files.

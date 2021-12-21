@@ -6,8 +6,8 @@ import os
 bl_info = {
     "name": "Batch Export",
     "author": "MrTriPie",
-    "version": (1, 0),
-    "blender": (2, 91, 0),
+    "version": (1, 1),
+    "blender": (3, 00, 0),
     "category": "Import-Export",
     "location": "3D Viewport > Side Panel > Export",
     "description": "Batch export the objects in your scene into seperate files",
@@ -17,41 +17,74 @@ bl_info = {
 }
 
 
+def get_operator_presets(operator):
+    presets = [("DEFAULT", "(default)", "", 1)]
+    i = 2
+    for d in bpy.utils.script_paths(subdir="presets\\operator\\" + operator):
+        for f in os.listdir(d):
+            if not f.endswith(".py"):
+                continue
+
+            presets.append((
+                d + "\\" + f,
+                os.path.splitext(f)[0],
+                "",
+                 i
+            ))
+            i += 1
+    return presets
+
+
+def load_operator_preset(preset):
+    options = {}
+    if preset == "DEFAULT":
+        return options
+    file = open(preset, "r")
+    for line in file.readlines():
+        # This assumes formatting of these files remains exactly the same
+        if line.startswith("op."):
+            line = line.removeprefix("op.")
+            split = line.split(" = ")
+            key = split[0]
+            value = split[1]
+
+            options[key] = eval(value)
+            print(options[key])
+    file.close()
+    return options
+
+
 class BatchExportPreferences(AddonPreferences):
     bl_idname = __name__
 
+    print(get_operator_presets("export_scene.x3d"))
+
     # Export Settings:
-    export_file_formats = [
-        ("DAE", "Collada (.dae)", "", 1),
-        ("USD", "Universal Scene Description (.usd/.usdc/.usda)", "", 2),
-        ("PLY", "Stanford (.ply)", "", 3),
-        ("STL", "STL (.stl)", "", 4),
-        ("FBX", "FBX (.fbx)", "", 5),
-        ("glTF", "glTF (.glb/.gltf)", "", 6),
-        ("OBJ", "Wavefront (.obj)", "", 7),
-        ("X3D", "X3D Extensible 3D (.x3d)", "", 8),
-    ]
-    export_modes = [
-        ("OBJECTS", "Objects", "Each object is exported to its own file", 1),
-        ("OBJECT_PARENTS", "Objects by Parents",
-         "Same as 'Objects', but objects that are parents have their\nchildren exported with them instead of by themselves", 2),
-        ("COLLECTIONS", "Collections",
-         "Each collection is exported into its own file", 3),
-    ]
-    export_limits = [
-        ("VISIBLE", "Visible", "", 1),
-        ("SELECTED", "Selected", "", 2),
-    ]
     file_format: EnumProperty(
         name="Format",
         description="Which file format to export to",
-        items=export_file_formats,
+        items=[
+            ("DAE", "Collada (.dae)", "", 1),
+            ("USD", "Universal Scene Description (.usd/.usdc/.usda)", "", 2),
+            ("PLY", "Stanford (.ply)", "", 3),
+            ("STL", "STL (.stl)", "", 4),
+            ("FBX", "FBX (.fbx)", "", 5),
+            ("glTF", "glTF (.glb/.gltf)", "", 6),
+            ("OBJ", "Wavefront (.obj)", "", 7),
+            ("X3D", "X3D Extensible 3D (.x3d)", "", 8),
+        ],
         default="glTF",
     )
     mode: EnumProperty(
         name="Mode",
         description="What to export",
-        items=export_modes,
+        items=[
+            ("OBJECTS", "Objects", "Each object is exported to its own file", 1),
+            ("OBJECT_PARENTS", "Objects by Parents",
+            "Same as 'Objects', but objects that are parents have their\nchildren exported with them instead of by themselves", 2),
+            ("COLLECTIONS", "Collections",
+            "Each collection is exported into its own file", 3),
+        ],
         default="OBJECT_PARENTS",
     )
     apply_mods: BoolProperty(
@@ -62,28 +95,28 @@ class BatchExportPreferences(AddonPreferences):
     limit: EnumProperty(
         name="Limit to",
         description="How to limit which objects are exported",
-        items=export_limits,
+        items=[
+            ("VISIBLE", "Visible", "", 1),
+            ("SELECTED", "Selected", "", 2),
+        ],
         default="VISIBLE",
     )
 
     # Format Specific:
-    usd_formats = [
-        (".usd", "Plain (.usd)",
-         "Can be either binary or ASCII\nIn Blender this exports to binary", 1),
-        (".usdc", "Binary Crate (default) (.usdc)", "Binary, fast, hard to edit", 2),
-        (".usda", "ASCII (.usda)", "ASCII Text, slow, easy to edit", 3),
-    ]
-    gltf_formats = [
-        ("GLB", "Binary (default) (.glb)",
-         "Binary format, textures packed in, fastest, hard to edit", 1),
-        ("GLTF_EMBEDDED", "Embedded (.gltf)",
-         "JSON text format, textures packed in, slowest but easier to edit", 2),
-        ("GLTF_SEPARATE", "Seperate (.gltf + .bin + textures)",
-         "Exported to multiple files, easiest to edit", 3),
-    ]
+    dae_preset: EnumProperty(
+        name="Preset",
+        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
+        items=get_operator_presets('wm.collada_export'),
+        default="DEFAULT",
+    )
     usd_format: EnumProperty(
         name="Format",
-        items=usd_formats,
+        items=[
+            (".usd", "Plain (.usd)",
+            "Can be either binary or ASCII\nIn Blender this exports to binary", 1),
+            (".usdc", "Binary Crate (default) (.usdc)", "Binary, fast, hard to edit", 2),
+            (".usda", "ASCII (.usda)", "ASCII Text, slow, easy to edit", 3),
+        ],
         default=".usdc",
     )
     ply_ascii: BoolProperty(
@@ -94,10 +127,42 @@ class BatchExportPreferences(AddonPreferences):
         name="ASCII Format",
         default=False,
     )
+    fbx_preset: EnumProperty(
+        name="Preset",
+        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
+        items=get_operator_presets('export_scene.fbx'),
+        default="DEFAULT",
+    )
+    gltf_preset: EnumProperty(
+        name="Preset",
+        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
+        items=get_operator_presets('export_scene.gltf'),
+        default="DEFAULT",
+    )
+    # TODO: This should most likely be removed in favor of presets...
     gltf_format: EnumProperty(
         name="Format",
-        items=gltf_formats,
+        items=[
+            ("GLB", "Binary (default) (.glb)",
+            "Binary format, textures packed in, fastest, hard to edit", 1),
+            ("GLTF_EMBEDDED", "Embedded (.gltf)",
+            "JSON text format, textures packed in, slowest but easier to edit", 2),
+            ("GLTF_SEPARATE", "Seperate (.gltf + .bin + textures)",
+            "Exported to multiple files, easiest to edit", 3),
+        ],
         default="GLB",
+    )
+    obj_preset: EnumProperty(
+        name="Preset",
+        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
+        items=get_operator_presets('export_scene.obj'),
+        default="DEFAULT",
+    )
+    x3d_preset: EnumProperty(
+        name="Preset",
+        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
+        items=get_operator_presets('export_scene.x3d'),
+        default="DEFAULT",
     )
 
     # Transform:
@@ -221,31 +286,54 @@ class EXPORT_MESH_OT_batch(Operator):
 
         # Export
         if prefs.file_format == "DAE":
-            bpy.ops.wm.collada_export(
-                filepath=fp, selected=True, apply_modifiers=prefs.apply_mods)
+            options = load_operator_preset(prefs.dae_preset)
+            options["filepath"] = fp
+            options["selected"] = True
+            options["apply_modifiers"] = prefs.apply_mods
+            bpy.ops.wm.collada_export(**options)
+
         elif prefs.file_format == "USD":
             bpy.ops.wm.usd_export(
                 filepath=fp+prefs.usd_format, selected_objects_only=True)
+
         elif prefs.file_format == "PLY":
             bpy.ops.export_mesh.ply(
                 filepath=fp+".ply", use_ascii=prefs.ply_ascii, use_selection=True, use_mesh_modifiers=prefs.apply_mods)
+
         elif prefs.file_format == "STL":
             bpy.ops.export_mesh.stl(
                 filepath=fp+".stl", ascii=prefs.stl_ascii, use_selection=True, use_mesh_modifiers=prefs.apply_mods)
-        elif prefs.file_format == "FBX":
-            bpy.ops.export_scene.fbx(
-                filepath=fp+".fbx", use_selection=True, use_mesh_modifiers=prefs.apply_mods)
-        elif prefs.file_format == "glTF":
-            bpy.ops.export_scene.gltf(
-                filepath=fp, use_selection=True, export_format=prefs.gltf_format, export_apply=prefs.apply_mods)
-        elif prefs.file_format == "OBJ":
-            bpy.ops.export_scene.obj(
-                filepath=fp+".obj", use_selection=True, use_mesh_modifiers=prefs.apply_mods)
-        elif prefs.file_format == "X3D":
-            bpy.ops.export_scene.x3d(
-                filepath=fp+".x3d", use_selection=True, use_mesh_modifiers=prefs.apply_mods)
 
-            # Reset the transform to what it was before
+        elif prefs.file_format == "FBX":
+            options = load_operator_preset(prefs.fbx_preset)
+            options["filepath"] = fp+".fbx"
+            options["use_selection"] = True
+            options["use_mesh_modifiers"] = prefs.apply_mods
+            bpy.ops.export_scene.fbx(**options)
+
+        elif prefs.file_format == "glTF":
+            options = load_operator_preset(prefs.gltf_preset)
+            options["filepath"] = fp
+            options["use_selection"] = True
+            options["export_format"] = prefs.gltf_format
+            options["export_apply"] = prefs.apply_mods
+            bpy.ops.export_scene.gltf(**options)
+
+        elif prefs.file_format == "OBJ":
+            options = load_operator_preset(prefs.obj_preset)
+            options["filepath"] = fp+".obj"
+            options["use_selection"] = True
+            options["use_mesh_modifiers"] = prefs.apply_mods
+            bpy.ops.export_scene.obj(**options)
+
+        elif prefs.file_format == "X3D":
+            options = load_operator_preset(prefs.x3d_preset)
+            options["filepath"] = fp+".x3d"
+            options["use_selection"] = True
+            options["use_mesh_modifiers"] = prefs.apply_mods
+            bpy.ops.export_scene.x3d(**options)
+
+        # Reset the transform to what it was before
         i = 0
         for obj in context.selected_objects:
             obj.location = old_locations[i]
@@ -293,10 +381,10 @@ class VIEW3D_PT_batch_export_export_settings(Panel):
         col.prop(prefs, "file_format")
         col.prop(prefs, "mode")
         col.prop(prefs, "limit")
-        if prefs.file_format != "USD":
-            col = self.layout.column(align=True)
-            col.prop(prefs, "apply_mods")
-        if prefs.file_format == "USD":
+        if prefs.file_format == "DAE":
+            col = self.layout.column(heading="DAE Settings:")
+            col.prop(prefs, "dae_preset")
+        elif prefs.file_format == "USD":
             col = self.layout.column(heading="USD Settings:")
             col.prop(prefs, "usd_format")
         elif prefs.file_format == "PLY":
@@ -305,9 +393,23 @@ class VIEW3D_PT_batch_export_export_settings(Panel):
         elif prefs.file_format == "STL":
             col = self.layout.column(heading="STL Settings:")
             col.prop(prefs, "stl_ascii")
+        elif prefs.file_format == "FBX":
+            col = self.layout.column(heading="FBX Settings:")
+            col.prop(prefs, "fbx_preset")
         elif prefs.file_format == "glTF":
-            col = self.layout.column(heading="glTF Settings:")
+            col = self.layout.column(heading="glTF Settings:", align=True)
+            col.prop(prefs, "gltf_preset")
+            # TODO: Prob remove?
             col.prop(prefs, "gltf_format")
+        elif prefs.file_format == "OBJ":
+            col = self.layout.column(heading="OBJ Settings:")
+            col.prop(prefs, "obj_preset")
+        elif prefs.file_format == "X3D":
+            col = self.layout.column(heading="X3D Settings:")
+            col.prop(prefs, "x3d_preset")
+        if prefs.file_format != "USD":
+            col = self.layout.column(align=True)
+            col.prop(prefs, "apply_mods")
 
 
 class VIEW3D_PT_batch_export_transform(Panel):
@@ -338,8 +440,6 @@ classes = [
     VIEW3D_PT_batch_export_files,
     VIEW3D_PT_batch_export_export_settings,
     VIEW3D_PT_batch_export_transform,
-
-
 ]
 
 
@@ -370,6 +470,5 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
 
-# not sure what this is used for? Was shown in the tutorial........................................................................
 if __name__ == '__main__':
     register()

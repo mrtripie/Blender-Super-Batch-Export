@@ -18,8 +18,7 @@ bl_info = {
 
 
 def get_operator_presets(operator):
-    presets = [("DEFAULT", "(default)", "", 1)]
-    i = 2
+    presets = [("NONE", "", "")]
     for d in bpy.utils.script_paths(subdir="presets\\operator\\" + operator):
         for f in os.listdir(d):
             if not f.endswith(".py"):
@@ -29,15 +28,13 @@ def get_operator_presets(operator):
                 d + "\\" + f,
                 os.path.splitext(f)[0],
                 "",
-                 i
             ))
-            i += 1
     return presets
 
 
 def load_operator_preset(preset):
     options = {}
-    if preset == "DEFAULT":
+    if preset == "NONE":
         return options
     file = open(preset, "r")
     for line in file.readlines():
@@ -101,13 +98,10 @@ class BatchExportPreferences(AddonPreferences):
         ],
         default="VISIBLE",
     )
-
-    # Format Specific:
     dae_preset: EnumProperty(
         name="Preset",
-        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
-        items=get_operator_presets('wm.collada_export'),
-        default="DEFAULT",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Collada (.dae))",
+        items=lambda self, context : get_operator_presets('wm.collada_export'),
     )
     usd_format: EnumProperty(
         name="Format",
@@ -129,15 +123,13 @@ class BatchExportPreferences(AddonPreferences):
     )
     fbx_preset: EnumProperty(
         name="Preset",
-        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
-        items=get_operator_presets('export_scene.fbx'),
-        default="DEFAULT",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > FBX (.fbx))",
+        items=lambda self, context : get_operator_presets('export_scene.fbx'),
     )
     gltf_preset: EnumProperty(
         name="Preset",
-        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
-        items=get_operator_presets('export_scene.gltf'),
-        default="DEFAULT",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > glTF (.glb/.gltf))",
+        items=lambda self, context : get_operator_presets('export_scene.gltf'),
     )
     # TODO: This should most likely be removed in favor of presets...
     gltf_format: EnumProperty(
@@ -154,15 +146,13 @@ class BatchExportPreferences(AddonPreferences):
     )
     obj_preset: EnumProperty(
         name="Preset",
-        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
-        items=get_operator_presets('export_scene.obj'),
-        default="DEFAULT",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Wavefront (.obj))",
+        items=lambda self, context : get_operator_presets('export_scene.obj'),
     )
     x3d_preset: EnumProperty(
         name="Preset",
-        description="Use export settings from a preset. (Create in the export settings from the File > Export menu)",
-        items=get_operator_presets('export_scene.x3d'),
-        default="DEFAULT",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > X3D Extensible 3D (.x3d))",
+        items=lambda self, context : get_operator_presets('export_scene.x3d'),
     )
 
     # Transform:

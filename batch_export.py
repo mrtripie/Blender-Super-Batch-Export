@@ -95,11 +95,8 @@ class BatchExportPreferences(AddonPreferences):
         ],
         default="VISIBLE",
     )
-    dae_preset: EnumProperty(
-        name="Preset",
-        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Collada (.dae))",
-        items=lambda self, context : get_operator_presets('wm.collada_export'),
-    )
+
+    # Format specific options:
     usd_format: EnumProperty(
         name="Format",
         items=[
@@ -117,6 +114,11 @@ class BatchExportPreferences(AddonPreferences):
     stl_ascii: BoolProperty(
         name="ASCII Format",
         default=False,
+    )
+    dae_preset: EnumProperty(
+        name="Preset",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Collada (.dae))",
+        items=lambda self, context : get_operator_presets('wm.collada_export'),
     )
     fbx_preset: EnumProperty(
         name="Preset",

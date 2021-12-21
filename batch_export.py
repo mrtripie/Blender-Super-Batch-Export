@@ -131,19 +131,6 @@ class BatchExportPreferences(AddonPreferences):
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > glTF (.glb/.gltf))",
         items=lambda self, context : get_operator_presets('export_scene.gltf'),
     )
-    # TODO: This should most likely be removed in favor of presets...
-    gltf_format: EnumProperty(
-        name="Format",
-        items=[
-            ("GLB", "Binary (default) (.glb)",
-            "Binary format, textures packed in, fastest, hard to edit", 1),
-            ("GLTF_EMBEDDED", "Embedded (.gltf)",
-            "JSON text format, textures packed in, slowest but easier to edit", 2),
-            ("GLTF_SEPARATE", "Seperate (.gltf + .bin + textures)",
-            "Exported to multiple files, easiest to edit", 3),
-        ],
-        default="GLB",
-    )
     obj_preset: EnumProperty(
         name="Preset",
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Wavefront (.obj))",
@@ -305,7 +292,6 @@ class EXPORT_MESH_OT_batch(Operator):
             options = load_operator_preset(prefs.gltf_preset)
             options["filepath"] = fp
             options["use_selection"] = True
-            options["export_format"] = prefs.gltf_format
             options["export_apply"] = prefs.apply_mods
             bpy.ops.export_scene.gltf(**options)
 
@@ -389,8 +375,6 @@ class VIEW3D_PT_batch_export_export_settings(Panel):
         elif prefs.file_format == "glTF":
             col = self.layout.column(heading="glTF Settings:", align=True)
             col.prop(prefs, "gltf_preset")
-            # TODO: Prob remove?
-            col.prop(prefs, "gltf_format")
         elif prefs.file_format == "OBJ":
             col = self.layout.column(heading="OBJ Settings:")
             col.prop(prefs, "obj_preset")

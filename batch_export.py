@@ -53,9 +53,6 @@ def load_operator_preset(preset):
 
 class BatchExportPreferences(AddonPreferences):
     bl_idname = __name__
-
-    print(get_operator_presets("export_scene.x3d"))
-
     # Export Settings:
     file_format: EnumProperty(
         name="Format",

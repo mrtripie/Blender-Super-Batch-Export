@@ -6,10 +6,10 @@ import os
 bl_info = {
     "name": "Batch Export",
     "author": "MrTriPie",
-    "version": (1, 1),
+    "version": (2, 0),
     "blender": (3, 00, 0),
     "category": "Import-Export",
-    "location": "3D Viewport > Side Panel > Export",
+    "location": "Set in preferences below. Default: Top Bar (After File, Edit, ...Help)",
     "description": "Batch export the objects in your scene into seperate files",
     "warning": "Relies on the export add-on for the format used being enabled",
     "doc_url": "",
@@ -34,9 +34,9 @@ def get_operator_presets(operator):
 
 def load_operator_preset(preset):
     options = {}
-    if preset == "NONE":
+    if preset == 'NONE':
         return options
-    file = open(preset, "r")
+    file = open(preset, 'r')
     for line in file.readlines():
         # This assumes formatting of these files remains exactly the same
         if line.startswith("op."):
@@ -51,8 +51,119 @@ def load_operator_preset(preset):
     return options
 
 
+def draw_preferences(self, context):
+    self.layout.operator('export_mesh.batch', icon='EXPORT')
+
+    self.layout.separator()
+    col = self.layout.column(align=True, heading="Files")
+    col.prop(context.scene, "batch_export_directory")
+    col.prop(context.scene, "batch_export_prefix")
+    col.prop(context.scene, "batch_export_suffix")
+
+    self.layout.separator()
+    prefs = context.preferences.addons[__name__].preferences
+    col = self.layout.column(align=True, heading="Export Settings:")
+    col.prop(prefs, "file_format")
+    col.prop(prefs, "mode")
+    col.prop(prefs, "limit")
+
+    self.layout.separator()
+    if prefs.file_format == "DAE":
+        col = self.layout.column(heading="DAE Settings:")
+        col.prop(prefs, "dae_preset")
+    elif prefs.file_format == "USD":
+        col = self.layout.column(heading="USD Settings:")
+        col.prop(prefs, "usd_format")
+    elif prefs.file_format == "PLY":
+        col = self.layout.column(heading="PLY Settings:")
+        col.prop(prefs, "ply_ascii")
+    elif prefs.file_format == "STL":
+        col = self.layout.column(heading="STL Settings:")
+        col.prop(prefs, "stl_ascii")
+    elif prefs.file_format == "FBX":
+        col = self.layout.column(heading="FBX Settings:")
+        col.prop(prefs, "fbx_preset")
+    elif prefs.file_format == "glTF":
+        col = self.layout.column(heading="glTF Settings:", align=True)
+        col.prop(prefs, "gltf_preset")
+    elif prefs.file_format == "OBJ":
+        col = self.layout.column(heading="OBJ Settings:")
+        col.prop(prefs, "obj_preset")
+    elif prefs.file_format == "X3D":
+        col = self.layout.column(heading="X3D Settings:")
+        col.prop(prefs, "x3d_preset")
+    if prefs.file_format != "USD":
+        self.layout.prop(prefs, "apply_mods")
+    
+    self.layout.separator()
+    col = self.layout.column(align=True, heading="Transform:")
+    col.prop(prefs, "set_location")
+    if prefs.set_location:
+        col.prop(prefs, "location", text="")  # text is redundant
+    col.prop(prefs, "set_rotation")
+    if prefs.set_rotation:
+        col.prop(prefs, "rotation", text="")
+    col.prop(prefs, "set_scale")
+    if prefs.set_scale:
+        col.prop(prefs, "scale", text="")
+
+
+def popover(self, context):
+    # A non-aligned row then an an aligned row groups together the buttons and rounds tehir corners
+    row = self.layout.row()
+    row = row.row(align=True)
+    row.operator('export_mesh.batch', text='', icon='EXPORT')
+    row.popover(panel='POPOVER_PT_batch_export', text='')
+
+
+# Side panel (used with Side Panel option)
+class VIEW3D_PT_batch_export(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Export"
+    bl_label = "Batch Export"
+
+    def draw(self, context):
+        draw_preferences(self, context)
+
+
+# Popover panel (used on 3D Viewport Header or Top Bar option)
+class POPOVER_PT_batch_export(Panel):
+    bl_space_type = 'TOPBAR'
+    bl_region_type = 'HEADER'
+    bl_label = "Batch Export"
+
+    def draw(self, context):
+        draw_preferences(self, context)
+
+
 class BatchExportPreferences(AddonPreferences):
     bl_idname = __name__
+
+    def addon_location_updated(self, context):
+        bpy.types.TOPBAR_MT_editor_menus.remove(popover)
+        bpy.types.VIEW3D_MT_editor_menus.remove(popover)
+        if hasattr(bpy.types, "VIEW3D_PT_batch_export"):
+            bpy.utils.unregister_class(VIEW3D_PT_batch_export)
+        if self.addon_location == 'TOPBAR':
+            bpy.types.TOPBAR_MT_editor_menus.append(popover)
+        elif self.addon_location == '3DHEADER':
+            bpy.types.VIEW3D_MT_editor_menus.append(popover)
+        elif self.addon_location == '3DSIDE':
+            bpy.utils.register_class(VIEW3D_PT_batch_export)
+
+    
+    addon_location: EnumProperty(
+        name="Addon Location",
+        description="Where to put the Batch Export Addon UI",
+        items=[
+            ('TOPBAR', "Top Bar", "Place on Blender's Top Bar (Next to File, Edit, Render, Window, Help)"),
+            ('3DHEADER', "3D Viewport Header", "Place in the 3D Viewport Header (Next to View, Select, Add, etc.)"),
+            ('3DSIDE', "3D Viewport Side Panel (Export Tab)", "Place in the 3D Viewport's right side panel, in the Export Tab"),
+        ],
+        update=addon_location_updated,
+    )
+
     # Export Settings:
     file_format: EnumProperty(
         name="Format",
@@ -169,6 +280,9 @@ class BatchExportPreferences(AddonPreferences):
         default=(1.0, 1.0, 1.0),
         subtype="XYZ",
     )
+
+    def draw(self, context):
+        self.layout.prop(self, "addon_location")
 
 
 class EXPORT_MESH_OT_batch(Operator):
@@ -319,102 +433,7 @@ class EXPORT_MESH_OT_batch(Operator):
         print("exported: ", fp)
 
 
-class VIEW3D_PT_batch_export(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "Export"
-    bl_label = "Batch Export"
-
-    def draw(self, context):
-        self.layout.operator('export_mesh.batch', icon='EXPORT')
-
-
-class VIEW3D_PT_batch_export_files(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "Export"
-    bl_label = "Files"
-    bl_parent_id = "VIEW3D_PT_batch_export"
-
-    def draw(self, context):
-        col = self.layout.column(align=True)
-        col.prop(context.scene, "batch_export_directory")
-        col.prop(context.scene, "batch_export_prefix")
-        col.prop(context.scene, "batch_export_suffix")
-
-
-class VIEW3D_PT_batch_export_export_settings(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "Export"
-    bl_label = "Export Settings"
-    bl_parent_id = "VIEW3D_PT_batch_export"
-
-    def draw(self, context):
-        prefs = context.preferences.addons[__name__].preferences
-        col = self.layout.column(align=True)
-        col.prop(prefs, "file_format")
-        col.prop(prefs, "mode")
-        col.prop(prefs, "limit")
-        if prefs.file_format == "DAE":
-            col = self.layout.column(heading="DAE Settings:")
-            col.prop(prefs, "dae_preset")
-        elif prefs.file_format == "USD":
-            col = self.layout.column(heading="USD Settings:")
-            col.prop(prefs, "usd_format")
-        elif prefs.file_format == "PLY":
-            col = self.layout.column(heading="PLY Settings:")
-            col.prop(prefs, "ply_ascii")
-        elif prefs.file_format == "STL":
-            col = self.layout.column(heading="STL Settings:")
-            col.prop(prefs, "stl_ascii")
-        elif prefs.file_format == "FBX":
-            col = self.layout.column(heading="FBX Settings:")
-            col.prop(prefs, "fbx_preset")
-        elif prefs.file_format == "glTF":
-            col = self.layout.column(heading="glTF Settings:", align=True)
-            col.prop(prefs, "gltf_preset")
-        elif prefs.file_format == "OBJ":
-            col = self.layout.column(heading="OBJ Settings:")
-            col.prop(prefs, "obj_preset")
-        elif prefs.file_format == "X3D":
-            col = self.layout.column(heading="X3D Settings:")
-            col.prop(prefs, "x3d_preset")
-        if prefs.file_format != "USD":
-            col = self.layout.column(align=True)
-            col.prop(prefs, "apply_mods")
-
-
-class VIEW3D_PT_batch_export_transform(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "Export"
-    bl_label = "Transform"
-    bl_parent_id = "VIEW3D_PT_batch_export"
-
-    def draw(self, context):
-        prefs = context.preferences.addons[__name__].preferences
-        col = self.layout.column(align=True)
-        col.prop(prefs, "set_location")
-        if prefs.set_location:
-            col.prop(prefs, "location", text="")  # text is redundant
-        col.prop(prefs, "set_rotation")
-        if prefs.set_rotation:
-            col.prop(prefs, "rotation", text="")
-        col.prop(prefs, "set_scale")
-        if prefs.set_scale:
-            col.prop(prefs, "scale", text="")
-
-
-classes = [
-    BatchExportPreferences,
-    EXPORT_MESH_OT_batch,
-    VIEW3D_PT_batch_export,
-    VIEW3D_PT_batch_export_files,
-    VIEW3D_PT_batch_export_export_settings,
-    VIEW3D_PT_batch_export_transform,
-]
-
+classes = [POPOVER_PT_batch_export, BatchExportPreferences, EXPORT_MESH_OT_batch]
 
 def register():
     bpy.types.Scene.batch_export_directory = StringProperty(
@@ -431,16 +450,33 @@ def register():
         name="Suffix",
         description="Text to put at the end of all the exported file names",
     )
-    for cls in classes:
-        bpy.utils.register_class(cls)
+
+    for c in classes:
+        bpy.utils.register_class(c)
+
+    prefs = bpy.context.preferences.addons[__name__].preferences
+    if prefs.addon_location == 'TOPBAR':
+        bpy.types.TOPBAR_MT_editor_menus.append(popover)
+    if prefs.addon_location == '3DHEADER':
+        bpy.types.VIEW3D_MT_editor_menus.append(popover)
+    elif prefs.addon_location == '3DSIDE':
+        bpy.utils.register_class(VIEW3D_PT_batch_export)
+
 
 
 def unregister():
     del bpy.types.Scene.batch_export_directory
     del bpy.types.Scene.batch_export_prefix
     del bpy.types.Scene.batch_export_suffix
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
+
+    if hasattr(bpy.types, "VIEW3D_PT_batch_export"):
+        bpy.utils.unregister_class(VIEW3D_PT_batch_export)
+    for c in classes:
+        bpy.utils.unregister_class(c)
+
+    bpy.types.TOPBAR_MT_editor_menus.remove(popover)
+    bpy.types.VIEW3D_MT_editor_menus.remove(popover)
+
 
 
 if __name__ == '__main__':

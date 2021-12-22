@@ -151,7 +151,6 @@ class BatchExportPreferences(AddonPreferences):
             bpy.types.VIEW3D_MT_editor_menus.append(popover)
         elif self.addon_location == '3DSIDE':
             bpy.utils.register_class(VIEW3D_PT_batch_export)
-
     
     addon_location: EnumProperty(
         name="Addon Location",
@@ -204,7 +203,6 @@ class BatchExportPreferences(AddonPreferences):
             ("VISIBLE", "Visible", "", 1),
             ("SELECTED", "Selected", "", 2),
         ],
-        default="VISIBLE",
     )
 
     # Format specific options:
@@ -218,14 +216,8 @@ class BatchExportPreferences(AddonPreferences):
         ],
         default=".usdc",
     )
-    ply_ascii: BoolProperty(
-        name="ASCII Format",
-        default=False,
-    )
-    stl_ascii: BoolProperty(
-        name="ASCII Format",
-        default=False,
-    )
+    ply_ascii: BoolProperty(name="ASCII Format", default=False)
+    stl_ascii: BoolProperty(name="ASCII Format", default=False)
     dae_preset: EnumProperty(
         name="Preset",
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Collada (.dae))",
@@ -253,33 +245,12 @@ class BatchExportPreferences(AddonPreferences):
     )
 
     # Transform:
-    set_location: BoolProperty(
-        name="Set Location",
-        default=True,
-    )
-    location: FloatVectorProperty(
-        name="Location",
-        default=(0.0, 0.0, 0.0),
-        subtype="TRANSLATION",
-    )
-    set_rotation: BoolProperty(
-        name="Set Rotation (XYZ Euler)",
-        default=True,
-    )
-    rotation: FloatVectorProperty(
-        name="Rotation",
-        default=(0.0, 0.0, 0.0),
-        subtype="EULER",
-    )
-    set_scale: BoolProperty(
-        name="Set Scale",
-        default=False,
-    )
-    scale: FloatVectorProperty(
-        name="Scale",
-        default=(1.0, 1.0, 1.0),
-        subtype="XYZ",
-    )
+    set_location: BoolProperty(name="Set Location", default=True)
+    location: FloatVectorProperty(name="Location", default=(0.0, 0.0, 0.0), subtype="TRANSLATION")
+    set_rotation: BoolProperty(name="Set Rotation (XYZ Euler)", default=True)
+    rotation: FloatVectorProperty(name="Rotation", default=(0.0, 0.0, 0.0), subtype="EULER")
+    set_scale: BoolProperty(name="Set Scale", default=False)
+    scale: FloatVectorProperty(name="Scale", default=(1.0, 1.0, 1.0), subtype="XYZ")
 
     def draw(self, context):
         self.layout.prop(self, "addon_location")
@@ -463,7 +434,6 @@ def register():
         bpy.utils.register_class(VIEW3D_PT_batch_export)
 
 
-
 def unregister():
     del bpy.types.Scene.batch_export_directory
     del bpy.types.Scene.batch_export_prefix
@@ -476,7 +446,6 @@ def unregister():
 
     bpy.types.TOPBAR_MT_editor_menus.remove(popover)
     bpy.types.VIEW3D_MT_editor_menus.remove(popover)
-
 
 
 if __name__ == '__main__':

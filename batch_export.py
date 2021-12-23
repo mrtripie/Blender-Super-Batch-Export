@@ -215,7 +215,7 @@ class EXPORT_MESH_OT_batch(Operator):
                 bpy.ops.object.select_all(action='DESELECT')
                 if obj.type in scene.batch_export_object_types:
                     obj.select_set(True)
-                self.select_children_recursive(obj)
+                self.select_children_recursive(obj, context)
                 if context.selected_objects:
                     self.export_selection(obj.name, context)
 
@@ -248,11 +248,11 @@ class EXPORT_MESH_OT_batch(Operator):
 
         return {'FINISHED'}
 
-    def select_children_recursive(self, obj):
+    def select_children_recursive(self, obj, context):
         for c in obj.children:
-            if obj.type in scene.batch_export_object_types:
+            if obj.type in context.scene.batch_export_object_types:
                 c.select_set(True)
-            self.select_children_recursive(c)
+            self.select_children_recursive(c, context)
 
     def export_selection(self, itemname, context):
         scene = context.scene

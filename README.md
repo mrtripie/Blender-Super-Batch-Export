@@ -1,9 +1,11 @@
 # Blender Batch Export
-Allows you to export multiple meshes in a blend file to separate files in one click.
+Allows you to export multiple meshes in a blend file to separate files in one click. Supports: **DAE, USD, PLY, STL, FBX, glTF, OBJ, X3D**
 
-Found in right side panel of the 3d viewport under the Export tab.
+It can be found in a few differnet places such as the top bar (by File, Edit, Render, Window, Help), the 3D Viewport Header (next to View, Select, Add...), or the 3D Viewport Side Bar Export Tab. You can set where to show it in the Addon Location setting under Edit > Preferences > Add-ons > Batch Export > Preferences.
 
-<img src="https://raw.githubusercontent.com/mrtripie/images/main/batch_export_screenshot.png?token=APTGQX267LXCIA4PSEEXMF3AL42XK" width="234"/>
+<img src="https://user-images.githubusercontent.com/65431647/147272597-7ed290c6-51b4-4afa-a8ee-ee4661330825.png" height="400"/> <img src="https://user-images.githubusercontent.com/65431647/147272883-0c8c10d7-062f-4737-8522-55a3c51c5c50.png" height="400"/>
+
+
 
 ## Instructions:
 Batch Export button: Press after everything is set up to export your meshes to seperate files.
@@ -16,6 +18,8 @@ Batch Export button: Press after everything is set up to export your meshes to s
 **Suffix:** The same as prefix, but after the rest of the file name.
 
 ### Export Settings:
+Export settings are stored in each scene. You can create your own default settings by opening a new file, choosing the settings you want as default, and pressing File > Defaults > Save Startup File.
+
 **Format:** Which file format to export to, supports: **DAE, USD, PLY, STL, FBX, glTF, OBJ, X3D**
 
 **Mode:** Three different modes for deciding what goes in which file:
@@ -27,7 +31,10 @@ Batch Export button: Press after everything is set up to export your meshes to s
 
 **Apply Modifiers:** Should modifiers be applied to the exported meshes? Warning: Having this on prevents shape keys from exporting.
 
-There may also be some format specific settings shown at the end of the Export Settings category.
+Formats also have format-specific options. DAE, FBX, glTF, OBJ, and X3D can choose a preset (created in export options from the normal File > Export > File Format menus), which can be used to set more specific settings.
+
+### Object Types:
+Choose which object types to export. WARNING: Blender doesn't support exporting all types to all formats, so if Blender's exporter for that format doesn't support an object type selected here, you may end up with empty files.
 
 ### Transform:
 **Set Location:** If on it will move the location each object to these coordinates, for example if all your objects are placed side by side, you can export them all centered out by using the coordinates (0, 0, 0).

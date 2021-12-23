@@ -223,6 +223,8 @@ class EXPORT_MESH_OT_batch(Operator):
             for col in bpy.data.collections.values():
                 bpy.ops.object.select_all(action='DESELECT')
                 for obj in col.objects:
+                    if not obj.type in scene.batch_export_object_types:
+                        continue
                     if not obj in objects:
                         continue
                     obj.select_set(True)

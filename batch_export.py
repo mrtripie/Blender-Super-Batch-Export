@@ -52,50 +52,61 @@ def load_operator_preset(preset):
 
 
 def draw_preferences(self, context):
+    self.layout.use_property_split = True
+    self.layout.use_property_decorate = False
+
     scene = context.scene
     self.layout.operator('export_mesh.batch', icon='EXPORT')
 
     self.layout.separator()
-    col = self.layout.column(align=True, heading="Files")
+    col = self.layout.column(align=True)
     col.prop(scene, "batch_export_directory")
     col.prop(scene, "batch_export_prefix")
     col.prop(scene, "batch_export_suffix")
 
     self.layout.separator()
-    col = self.layout.column(align=True, heading="Export Settings:")
+    col = self.layout.column(align=True)
+    col.label(text="Export Settings:")
     col.prop(scene, "batch_export_file_format")
     col.prop(scene, "batch_export_mode")
     col.prop(scene, "batch_export_limit")
 
     self.layout.separator()
+    col = self.layout.column()
     if scene.batch_export_file_format == "DAE":
-        col = self.layout.column(heading="DAE Settings:")
+        col.label(text="DAE Settings:")
         col.prop(scene, "batch_export_dae_preset")
     elif scene.batch_export_file_format == "USD":
-        col = self.layout.column(heading="USD Settings:")
+        col.label(text="USD Settings:")
         col.prop(scene, "batch_export_usd_format")
     elif scene.batch_export_file_format == "PLY":
-        col = self.layout.column(heading="PLY Settings:")
+        col.label(text="PLY Settings:")
         col.prop(scene, "batch_export_ply_ascii")
     elif scene.batch_export_file_format == "STL":
-        col = self.layout.column(heading="STL Settings:")
+        col.label(text="STL Settings:")
         col.prop(scene, "batch_export_stl_ascii")
     elif scene.batch_export_file_format == "FBX":
-        col = self.layout.column(heading="FBX Settings:")
+        col.label(text="FBX Settings:")
         col.prop(scene, "batch_export_fbx_preset")
     elif scene.batch_export_file_format == "glTF":
-        col = self.layout.column(heading="glTF Settings:", align=True)
+        col.label(text="glTF Settings:")
         col.prop(scene, "batch_export_gltf_preset")
     elif scene.batch_export_file_format == "OBJ":
-        col = self.layout.column(heading="OBJ Settings:")
+        col.label(text="OBJ Settings:")
         col.prop(scene, "batch_export_obj_preset")
     elif scene.batch_export_file_format == "X3D":
-        col = self.layout.column(heading="X3D Settings:")
+        col.label(text="X3D Settings:")
         col.prop(scene, "batch_export_x3d_preset")
 
     if scene.batch_export_file_format != "USD":
         self.layout.prop(scene, "batch_export_apply_mods")
-    
+
+    self.layout.use_property_split = False
+    self.layout.separator()
+    self.layout.label(text="Object Types:")
+    grid = self.layout.grid_flow(columns=3, align=True)
+    grid.prop(scene, "batch_export_object_types")
+
     self.layout.separator()
     col = self.layout.column(align=True, heading="Transform:")
     col.prop(scene, "batch_export_set_location")
@@ -110,7 +121,6 @@ def draw_preferences(self, context):
 
 
 def popover(self, context):
-    # A non-aligned row then an an aligned row groups together the buttons and rounds tehir corners
     row = self.layout.row()
     row = row.row(align=True)
     row.operator('export_mesh.batch', text='', icon='EXPORT')
@@ -172,21 +182,27 @@ class EXPORT_MESH_OT_batch(Operator):
     """Export many objects to seperate files all at once"""
     bl_idname = "export_mesh.batch"
     bl_label = "Batch Export"
+    file_count = 0
 
     def execute(self, context):
         scene = context.scene
+        self.file_count = 0
 
         view_layer = context.view_layer
         obj_active = view_layer.objects.active
         selection = context.selected_objects
-
         objects = view_layer.objects.values()
         if scene.batch_export_limit == "SELECTED":
             objects = selection
 
+        mode=''
+        if obj_active:
+            mode = obj_active.mode
+            bpy.ops.object.mode_set(mode='OBJECT') # Only works in Object mode
+           
         if scene.batch_export_mode == "OBJECTS":
             for obj in objects:
-                if obj.type != "MESH":
+                if not obj.type in scene.batch_export_object_types:
                     continue
                 bpy.ops.object.select_all(action='DESELECT')
                 obj.select_set(True)
@@ -197,7 +213,7 @@ class EXPORT_MESH_OT_batch(Operator):
                 if obj.parent:  # if it has a parent, skip it for now, it'll be exported when we get to its parent
                     continue
                 bpy.ops.object.select_all(action='DESELECT')
-                if obj.type == "MESH":
+                if obj.type in scene.batch_export_object_types:
                     obj.select_set(True)
                 self.select_children_recursive(obj)
                 if context.selected_objects:
@@ -206,7 +222,6 @@ class EXPORT_MESH_OT_batch(Operator):
         elif scene.batch_export_mode == "COLLECTIONS":
             for col in bpy.data.collections.values():
                 bpy.ops.object.select_all(action='DESELECT')
-                print(objects)
                 for obj in col.objects:
                     if not obj in objects:
                         continue
@@ -214,17 +229,26 @@ class EXPORT_MESH_OT_batch(Operator):
                 if context.selected_objects:
                     self.export_selection(col.name, context)
 
+        # Return selection to how it was
         bpy.ops.object.select_all(action='DESELECT')
-        view_layer.objects.active = obj_active
         for obj in selection:
             obj.select_set(True)
+        view_layer.objects.active = obj_active
+
+        # Return to whatever mode the user was in
+        if obj_active:
+            bpy.ops.object.mode_set(mode=mode)
+        
+        if self.file_count == 0:
+            self.report({'ERROR'}, "NOTHING TO EXPORT")
+        else:
+            self.report({'INFO'}, "Exported " + str(self.file_count) + " file(s)")
 
         return {'FINISHED'}
 
     def select_children_recursive(self, obj):
         for c in obj.children:
-            # TODO: Doesn't have to only do meshes now
-            if c.type == "MESH":
+            if obj.type in scene.batch_export_object_types:
                 c.select_set(True)
             self.select_children_recursive(c)
 
@@ -316,6 +340,7 @@ class EXPORT_MESH_OT_batch(Operator):
             i += 1
 
         print("exported: ", fp)
+        self.file_count += 1
 
 
 def register():
@@ -363,11 +388,6 @@ def register():
             "Each collection is exported into its own file", 3),
         ],
         default="OBJECT_PARENTS",
-    )
-    Scene.batch_export_apply_mods = BoolProperty(
-        name="Apply Modifiers",
-        description="Should the modifiers by applied onto the exported mesh?\nCan't export Shape Keys with this on",
-        default=True,
     )
     Scene.batch_export_limit = EnumProperty(
         name="Limit to",
@@ -417,6 +437,30 @@ def register():
         items=lambda self, context : get_operator_presets('export_scene.x3d'),
     )
 
+    Scene.batch_export_apply_mods = BoolProperty(
+        name="Apply Modifiers",
+        description="Should the modifiers by applied onto the exported mesh?\nCan't export Shape Keys with this on",
+        default=True,
+    )
+    Scene.batch_export_object_types = EnumProperty(
+        name="Object Types",
+        options={'ENUM_FLAG'},
+        items=[
+            ('MESH', "Mesh", "", 1),
+            ('CURVE', "Curve", "", 2),
+            ('SURFACE', "Surface", "", 4),
+            ('META', "Metaball", "", 8),
+            ('FONT', "Text", "", 16),
+            # ('GPENCIL', "Grease Pencil", "", 32), # I don't think its supported by anything but SVG currently.
+            ('ARMATURE', "Armature", "", 64),
+            ('EMPTY', "Empty", "", 128),
+            ('LIGHT', "Lamp", "", 256),
+            ('CAMERA', "Camera", "", 512),
+        ],
+        description="Which object types to export\n(NOT ALL FORMATS WILL SUPPORT THESE)",
+        default={'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'ARMATURE'},
+        )
+
     # Transform:
     Scene.batch_export_set_location = BoolProperty(name="Set Location", default=True)
     Scene.batch_export_location = FloatVectorProperty(name="Location", default=(0.0, 0.0, 0.0), subtype="TRANSLATION")
@@ -447,7 +491,6 @@ def unregister():
     del bpy.types.Scene.batch_export_suffix
     del bpy.types.Scene.batch_export_file_format
     del bpy.types.Scene.batch_export_mode
-    del bpy.types.Scene.batch_export_apply_mods
     del bpy.types.Scene.batch_export_limit
     del bpy.types.Scene.batch_export_usd_format
     del bpy.types.Scene.batch_export_ply_ascii
@@ -457,6 +500,8 @@ def unregister():
     del bpy.types.Scene.batch_export_gltf_preset
     del bpy.types.Scene.batch_export_obj_preset
     del bpy.types.Scene.batch_export_x3d_preset
+    del bpy.types.Scene.batch_export_apply_mods
+    del bpy.types.Scene.batch_export_object_types
     del bpy.types.Scene.batch_export_set_location
     del bpy.types.Scene.batch_export_location
     del bpy.types.Scene.batch_export_set_rotation

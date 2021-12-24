@@ -16,36 +16,42 @@ bl_info = {
     "tracker_url": "",
 }
 
-
 def get_operator_presets(operator):
     presets = [("NONE", "", "")]
-    for d in bpy.utils.script_paths(subdir="presets\\operator\\" + operator):
+    for d in bpy.utils.script_paths(subdir="presets/operator/" + operator):
         for f in os.listdir(d):
             if not f.endswith(".py"):
                 continue
-
             presets.append((
-                d + "//" + f,
+                f,
                 os.path.splitext(f)[0],
                 "",
             ))
     return presets
 
 
-def load_operator_preset(preset):
+def load_operator_preset(operator, preset):
     options = {}
     if preset == 'NONE':
         return options
-    file = open(preset, 'r')
-    for line in file.readlines():
-        # This assumes formatting of these files remains exactly the same
-        if line.startswith("op."):
-            line = line.removeprefix("op.")
-            split = line.split(" = ")
-            key = split[0]
-            value = split[1]
-            options[key] = eval(value)
-    file.close()
+
+    for d in bpy.utils.script_paths(subdir="presets/operator/" + operator):
+        fp = d + "/" + preset
+        if os.path.isfile(fp): # Found the preset file
+            print("Using preset " + fp)
+            file = open(fp, 'r')
+            for line in file.readlines():
+                # This assumes formatting of these files remains exactly the same
+                if line.startswith("op."):
+                    line = line.removeprefix("op.")
+                    split = line.split(" = ")
+                    key = split[0]
+                    value = split[1]
+                    options[key] = eval(value)
+            file.close()
+            return options
+    # If it didn't find the preset, use empty options
+    # (the preset option should look blank if the file doesn't exist anyway)
     return options
 
 
@@ -293,7 +299,7 @@ class EXPORT_MESH_OT_batch(Operator):
 
         # Export
         if scene.batch_export_file_format == "DAE":
-            options = load_operator_preset(scene.batch_export_dae_preset)
+            options = load_operator_preset('wm.collada_export', scene.batch_export_dae_preset)
             options["filepath"] = fp
             options["selected"] = True
             options["apply_modifiers"] = scene.batch_export_apply_mods
@@ -312,28 +318,28 @@ class EXPORT_MESH_OT_batch(Operator):
                 filepath=fp+".stl", ascii=scene.batch_export_stl_ascii, use_selection=True, use_mesh_modifiers=scene.batch_export_apply_mods)
 
         elif scene.batch_export_file_format == "FBX":
-            options = load_operator_preset(scene.batch_export_fbx_preset)
+            options = load_operator_preset('export_scene.fbx', scene.batch_export_fbx_preset)
             options["filepath"] = fp+".fbx"
             options["use_selection"] = True
             options["use_mesh_modifiers"] = scene.batch_export_apply_mods
             bpy.ops.export_scene.fbx(**options)
 
         elif scene.batch_export_file_format == "glTF":
-            options = load_operator_preset(scene.batch_export_gltf_preset)
+            options = load_operator_preset('export_scene.gltf', scene.batch_export_gltf_preset)
             options["filepath"] = fp
             options["use_selection"] = True
             options["export_apply"] = scene.batch_export_apply_mods
             bpy.ops.export_scene.gltf(**options)
 
         elif scene.batch_export_file_format == "OBJ":
-            options = load_operator_preset(scene.batch_export_obj_preset)
+            options = load_operator_preset('export_scene.obj', scene.batch_export_obj_preset)
             options["filepath"] = fp+".obj"
             options["use_selection"] = True
             options["use_mesh_modifiers"] = scene.batch_export_apply_mods
             bpy.ops.export_scene.obj(**options)
 
         elif scene.batch_export_file_format == "X3D":
-            options = load_operator_preset(scene.batch_export_x3d_preset)
+            options = load_operator_preset('export_scene.x3d', scene.batch_export_x3d_preset)
             options["filepath"] = fp+".x3d"
             options["use_selection"] = True
             options["use_mesh_modifiers"] = scene.batch_export_apply_mods

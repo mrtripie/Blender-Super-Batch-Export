@@ -6,14 +6,14 @@ import os
 bl_info = {
     "name": "Batch Export",
     "author": "MrTriPie",
-    "version": (2, 0),
+    "version": (2, 0, 2),
     "blender": (3, 00, 0),
     "category": "Import-Export",
     "location": "Set in preferences below. Default: Top Bar (After File, Edit, ...Help)",
     "description": "Batch export the objects in your scene into seperate files",
     "warning": "Relies on the export add-on for the format used being enabled",
-    "doc_url": "",
-    "tracker_url": "",
+    "doc_url": "github.com/mrtripie/Blender-Batch-Export/blob/main/README.md",
+    "tracker_url": "github.com/mrtripie/Blender-Batch-Export/issues",
 }
 
 def get_operator_presets(operator):

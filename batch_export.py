@@ -25,7 +25,7 @@ def get_operator_presets(operator):
                 continue
 
             presets.append((
-                d + "\\" + f,
+                d + "//" + f,
                 os.path.splitext(f)[0],
                 "",
             ))
@@ -44,9 +44,7 @@ def load_operator_preset(preset):
             split = line.split(" = ")
             key = split[0]
             value = split[1]
-
             options[key] = eval(value)
-            print(options[key])
     file.close()
     return options
 
@@ -162,7 +160,7 @@ class BatchExportPreferences(AddonPreferences):
             bpy.types.VIEW3D_MT_editor_menus.append(popover)
         elif self.addon_location == '3DSIDE':
             bpy.utils.register_class(VIEW3D_PT_batch_export)
-    
+
     addon_location: EnumProperty(
         name="Addon Location",
         description="Where to put the Batch Export Addon UI",
@@ -186,6 +184,17 @@ class EXPORT_MESH_OT_batch(Operator):
 
     def execute(self, context):
         scene = context.scene
+
+        base_dir = scene.batch_export_directory
+        if not bpy.path.abspath('//'): # Then the blend file hasn't been saved
+            if base_dir != bpy.path.abspath(base_dir): # Then the path should be relative
+                self.report({'ERROR'}, "Save .blend file somewhere before exporting to relative directory\n(or use an absolute directory)")
+                return {'FINISHED'}
+        base_dir = bpy.path.abspath(base_dir) # convert to absolute path
+        if not os.path.isdir(base_dir):
+            self.report({'ERROR'}, "Export directory doesn't exist")
+            return {'FINISHED'}
+
         self.file_count = 0
 
         view_layer = context.view_layer
@@ -195,18 +204,18 @@ class EXPORT_MESH_OT_batch(Operator):
         if scene.batch_export_limit == "SELECTED":
             objects = selection
 
-        mode=''
+        mode = ''
         if obj_active:
             mode = obj_active.mode
             bpy.ops.object.mode_set(mode='OBJECT') # Only works in Object mode
-           
+
         if scene.batch_export_mode == "OBJECTS":
             for obj in objects:
                 if not obj.type in scene.batch_export_object_types:
                     continue
                 bpy.ops.object.select_all(action='DESELECT')
                 obj.select_set(True)
-                self.export_selection(obj.name, context)
+                self.export_selection(obj.name, context, base_dir)
 
         elif scene.batch_export_mode == "OBJECT_PARENTS":
             for obj in objects:
@@ -215,9 +224,9 @@ class EXPORT_MESH_OT_batch(Operator):
                 bpy.ops.object.select_all(action='DESELECT')
                 if obj.type in scene.batch_export_object_types:
                     obj.select_set(True)
-                self.select_children_recursive(obj, context)
+                self.select_children_recursive(obj, context,)
                 if context.selected_objects:
-                    self.export_selection(obj.name, context)
+                    self.export_selection(obj.name, context, base_dir)
 
         elif scene.batch_export_mode == "COLLECTIONS":
             for col in bpy.data.collections.values():
@@ -229,7 +238,7 @@ class EXPORT_MESH_OT_batch(Operator):
                         continue
                     obj.select_set(True)
                 if context.selected_objects:
-                    self.export_selection(col.name, context)
+                    self.export_selection(col.name, context, base_dir)
 
         # Return selection to how it was
         bpy.ops.object.select_all(action='DESELECT')
@@ -240,7 +249,7 @@ class EXPORT_MESH_OT_batch(Operator):
         # Return to whatever mode the user was in
         if obj_active:
             bpy.ops.object.mode_set(mode=mode)
-        
+
         if self.file_count == 0:
             self.report({'ERROR'}, "NOTHING TO EXPORT")
         else:
@@ -254,7 +263,7 @@ class EXPORT_MESH_OT_batch(Operator):
                 c.select_set(True)
             self.select_children_recursive(c, context)
 
-    def export_selection(self, itemname, context):
+    def export_selection(self, itemname, context, base_dir):
         scene = context.scene
         # save the transform to be reset later:
         old_locations = []
@@ -277,9 +286,6 @@ class EXPORT_MESH_OT_batch(Operator):
         # Some exporters only use the active object: #I think this isn't true anymore
         # view_layer.objects.active = obj
 
-        base_dir = bpy.path.abspath(context.scene.batch_export_directory)
-        if not base_dir:
-            raise Exception("Directory is not set")
         prefix = context.scene.batch_export_prefix
         suffix = context.scene.batch_export_suffix
         name = prefix + bpy.path.clean_name(itemname) + suffix

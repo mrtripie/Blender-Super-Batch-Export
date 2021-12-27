@@ -1,6 +1,6 @@
 import bpy
-from bpy.types import AddonPreferences, Operator, Panel
-from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatVectorProperty
+from bpy.types import AddonPreferences, PropertyGroup, Operator, Panel
+from bpy.props import PointerProperty, StringProperty, BoolProperty, EnumProperty, FloatVectorProperty
 import os
 
 bl_info = {
@@ -16,17 +16,21 @@ bl_info = {
     "tracker_url": "github.com/mrtripie/Blender-Batch-Export/issues",
 }
 
+preset_enum_items_refs = {}
+
 def get_operator_presets(operator):
-    presets = [("NONE", "", "")]
+    presets = [("NONE", "", "", 0)]
     for d in bpy.utils.script_paths(subdir="presets/operator/" + operator):
         for f in os.listdir(d):
             if not f.endswith(".py"):
                 continue
-            presets.append((
-                f,
-                os.path.splitext(f)[0],
-                "",
-            ))
+            f = os.path.splitext(f)[0]
+            i = hash(f) # use a hash of the filename to be most likely unique
+            # use % to limit to C short int size. Include negative sign :
+            # (not sure why it has to be short int, should be long, but the number becomes inaccurate in blender)
+            i = (i % 32767) * (-1 if i < 0 else 1)
+            presets.append((f, f, "", i))
+    preset_enum_items_refs[operator] = presets # Blender's doc warns that not keeping reference to enum props array can cause crashs and weird issues
     return presets
 
 
@@ -55,73 +59,67 @@ def load_operator_preset(operator, preset):
     return options
 
 
-def draw_preferences(self, context):
+def draw_settings(self, context):
     self.layout.use_property_split = True
     self.layout.use_property_decorate = False
 
-    scene = context.scene
+    settings = context.scene.batch_export_settings
     self.layout.operator('export_mesh.batch', icon='EXPORT')
 
     self.layout.separator()
     col = self.layout.column(align=True)
-    col.prop(scene, "batch_export_directory")
-    col.prop(scene, "batch_export_prefix")
-    col.prop(scene, "batch_export_suffix")
+    col.prop(settings, 'directory')
+    col.prop(settings, 'prefix')
+    col.prop(settings, 'suffix')
 
     self.layout.separator()
     col = self.layout.column(align=True)
     col.label(text="Export Settings:")
-    col.prop(scene, "batch_export_file_format")
-    col.prop(scene, "batch_export_mode")
-    col.prop(scene, "batch_export_limit")
+    col.prop(settings, 'file_format')
+    col.prop(settings, 'mode')
+    col.prop(settings, 'limit')
 
     self.layout.separator()
     col = self.layout.column()
-    if scene.batch_export_file_format == "DAE":
-        col.label(text="DAE Settings:")
-        col.prop(scene, "batch_export_dae_preset")
-    elif scene.batch_export_file_format == "USD":
-        col.label(text="USD Settings:")
-        col.prop(scene, "batch_export_usd_format")
-    elif scene.batch_export_file_format == "PLY":
-        col.label(text="PLY Settings:")
-        col.prop(scene, "batch_export_ply_ascii")
-    elif scene.batch_export_file_format == "STL":
-        col.label(text="STL Settings:")
-        col.prop(scene, "batch_export_stl_ascii")
-    elif scene.batch_export_file_format == "FBX":
-        col.label(text="FBX Settings:")
-        col.prop(scene, "batch_export_fbx_preset")
-    elif scene.batch_export_file_format == "glTF":
-        col.label(text="glTF Settings:")
-        col.prop(scene, "batch_export_gltf_preset")
-    elif scene.batch_export_file_format == "OBJ":
-        col.label(text="OBJ Settings:")
-        col.prop(scene, "batch_export_obj_preset")
-    elif scene.batch_export_file_format == "X3D":
-        col.label(text="X3D Settings:")
-        col.prop(scene, "batch_export_x3d_preset")
 
-    if scene.batch_export_file_format != "USD":
-        self.layout.prop(scene, "batch_export_apply_mods")
+    col.label(text=settings.file_format + " Settings:")
+    if settings.file_format == 'DAE':
+        col.prop(settings, 'dae_preset')
+    elif settings.file_format == 'USD':
+        col.prop(settings, 'usd_format')
+    elif settings.file_format == 'PLY':
+        col.prop(settings, 'ply_ascii')
+    elif settings.file_format == 'STL':
+        col.prop(settings, 'stl_ascii')
+    elif settings.file_format == 'FBX':
+        col.prop(settings, 'fbx_preset')
+    elif settings.file_format == 'glTF':
+        col.prop(settings, 'gltf_preset')
+    elif settings.file_format == 'OBJ':
+        col.prop(settings, 'obj_preset')
+    elif settings.file_format == 'X3D':
+        col.prop(settings, 'x3d_preset')
+
+    if settings.file_format != 'USD':
+        self.layout.prop(settings, 'apply_mods')
 
     self.layout.use_property_split = False
     self.layout.separator()
     self.layout.label(text="Object Types:")
     grid = self.layout.grid_flow(columns=3, align=True)
-    grid.prop(scene, "batch_export_object_types")
+    grid.prop(settings, 'object_types')
 
     self.layout.separator()
     col = self.layout.column(align=True, heading="Transform:")
-    col.prop(scene, "batch_export_set_location")
-    if scene.batch_export_set_location:
-        col.prop(scene, "batch_export_location", text="")  # text is redundant
-    col.prop(scene, "batch_export_set_rotation")
-    if scene.batch_export_set_rotation:
-        col.prop(scene, "batch_export_rotation", text="")
-    col.prop(scene, "batch_export_set_scale")
-    if scene.batch_export_set_scale:
-        col.prop(scene, "batch_export_scale", text="")
+    col.prop(settings, 'set_location')
+    if settings.set_location:
+        col.prop(settings, 'location', text="")  # text is redundant
+    col.prop(settings, 'set_rotation')
+    if settings.set_rotation:
+        col.prop(settings, 'rotation', text="")
+    col.prop(settings, 'set_scale')
+    if settings.set_scale:
+        col.prop(settings, 'scale', text="")
 
 
 def popover(self, context):
@@ -139,7 +137,7 @@ class VIEW3D_PT_batch_export(Panel):
     bl_label = "Batch Export"
 
     def draw(self, context):
-        draw_preferences(self, context)
+        draw_settings(self, context)
 
 
 # Popover panel (used on 3D Viewport Header or Top Bar option)
@@ -149,7 +147,7 @@ class POPOVER_PT_batch_export(Panel):
     bl_label = "Batch Export"
 
     def draw(self, context):
-        draw_preferences(self, context)
+        draw_settings(self, context)
 
 
 class BatchExportPreferences(AddonPreferences):
@@ -189,9 +187,9 @@ class EXPORT_MESH_OT_batch(Operator):
     file_count = 0
 
     def execute(self, context):
-        scene = context.scene
+        settings = context.scene.batch_export_settings
 
-        base_dir = scene.batch_export_directory
+        base_dir = settings.directory
         if not bpy.path.abspath('//'): # Then the blend file hasn't been saved
             if base_dir != bpy.path.abspath(base_dir): # Then the path should be relative
                 self.report({'ERROR'}, "Save .blend file somewhere before exporting to relative directory\n(or use an absolute directory)")
@@ -207,7 +205,7 @@ class EXPORT_MESH_OT_batch(Operator):
         obj_active = view_layer.objects.active
         selection = context.selected_objects
         objects = view_layer.objects.values()
-        if scene.batch_export_limit == "SELECTED":
+        if settings.limit == 'SELECTED':
             objects = selection
 
         mode = ''
@@ -215,30 +213,30 @@ class EXPORT_MESH_OT_batch(Operator):
             mode = obj_active.mode
             bpy.ops.object.mode_set(mode='OBJECT') # Only works in Object mode
 
-        if scene.batch_export_mode == "OBJECTS":
+        if settings.mode == 'OBJECTS':
             for obj in objects:
-                if not obj.type in scene.batch_export_object_types:
+                if not obj.type in settings.object_types:
                     continue
                 bpy.ops.object.select_all(action='DESELECT')
                 obj.select_set(True)
                 self.export_selection(obj.name, context, base_dir)
 
-        elif scene.batch_export_mode == "OBJECT_PARENTS":
+        elif settings.mode == 'OBJECT_PARENTS':
             for obj in objects:
                 if obj.parent:  # if it has a parent, skip it for now, it'll be exported when we get to its parent
                     continue
                 bpy.ops.object.select_all(action='DESELECT')
-                if obj.type in scene.batch_export_object_types:
+                if obj.type in settings.object_types:
                     obj.select_set(True)
                 self.select_children_recursive(obj, context,)
                 if context.selected_objects:
                     self.export_selection(obj.name, context, base_dir)
 
-        elif scene.batch_export_mode == "COLLECTIONS":
+        elif settings.mode == 'COLLECTIONS':
             for col in bpy.data.collections.values():
                 bpy.ops.object.select_all(action='DESELECT')
                 for obj in col.objects:
-                    if not obj.type in scene.batch_export_object_types:
+                    if not obj.type in settings.object_types:
                         continue
                     if not obj in objects:
                         continue
@@ -265,12 +263,12 @@ class EXPORT_MESH_OT_batch(Operator):
 
     def select_children_recursive(self, obj, context):
         for c in obj.children:
-            if obj.type in context.scene.batch_export_object_types:
+            if obj.type in context.scene.batch_export_settings.object_types:
                 c.select_set(True)
             self.select_children_recursive(c, context)
 
     def export_selection(self, itemname, context, base_dir):
-        scene = context.scene
+        settings = context.scene.batch_export_settings
         # save the transform to be reset later:
         old_locations = []
         old_rotations = []
@@ -281,68 +279,68 @@ class EXPORT_MESH_OT_batch(Operator):
             old_scales.append(obj.scale.copy())
 
             # If exporting by parent, don't set child (object that has a parent) transform
-            if scene.batch_export_mode != "OBJECT_PARENTS" or not obj.parent:
-                if scene.batch_export_set_location:
-                    obj.location = scene.batch_export_location
-                if scene.batch_export_set_rotation:
-                    obj.rotation_euler = scene.batch_export_rotation
-                if scene.batch_export_set_scale:
-                    obj.scale = scene.batch_export_scale
+            if settings.mode != "OBJECT_PARENTS" or not obj.parent:
+                if settings.set_location:
+                    obj.location = settings.location
+                if settings.set_rotation:
+                    obj.rotation_euler = settings.rotation
+                if settings.set_scale:
+                    obj.scale = settings.scale
 
         # Some exporters only use the active object: #I think this isn't true anymore
         # view_layer.objects.active = obj
 
-        prefix = context.scene.batch_export_prefix
-        suffix = context.scene.batch_export_suffix
+        prefix = settings.prefix
+        suffix = settings.suffix
         name = prefix + bpy.path.clean_name(itemname) + suffix
         fp = os.path.join(base_dir, name)
 
         # Export
-        if scene.batch_export_file_format == "DAE":
-            options = load_operator_preset('wm.collada_export', scene.batch_export_dae_preset)
+        if settings.file_format == "DAE":
+            options = load_operator_preset('wm.collada_export', settings.dae_preset)
             options["filepath"] = fp
             options["selected"] = True
-            options["apply_modifiers"] = scene.batch_export_apply_mods
+            options["apply_modifiers"] = settings.apply_mods
             bpy.ops.wm.collada_export(**options)
 
-        elif scene.batch_export_file_format == "USD":
+        elif settings.file_format == "USD":
             bpy.ops.wm.usd_export(
-                filepath=fp+scene.batch_export_usd_format, selected_objects_only=True)
+                filepath=fp+settings.usd_format, selected_objects_only=True)
 
-        elif scene.batch_export_file_format == "PLY":
+        elif settings.file_format == "PLY":
             bpy.ops.export_mesh.ply(
-                filepath=fp+".ply", use_ascii=scene.batch_export_ply_ascii, use_selection=True, use_mesh_modifiers=scene.batch_export_apply_mods)
+                filepath=fp+".ply", use_ascii=settings.ply_ascii, use_selection=True, use_mesh_modifiers=settings.apply_mods)
 
-        elif scene.batch_export_file_format == "STL":
+        elif settings.file_format == "STL":
             bpy.ops.export_mesh.stl(
-                filepath=fp+".stl", ascii=scene.batch_export_stl_ascii, use_selection=True, use_mesh_modifiers=scene.batch_export_apply_mods)
+                filepath=fp+".stl", ascii=settings.stl_ascii, use_selection=True, use_mesh_modifiers=settings.apply_mods)
 
-        elif scene.batch_export_file_format == "FBX":
-            options = load_operator_preset('export_scene.fbx', scene.batch_export_fbx_preset)
+        elif settings.file_format == "FBX":
+            options = load_operator_preset('export_scene.fbx', settings.fbx_preset)
             options["filepath"] = fp+".fbx"
             options["use_selection"] = True
-            options["use_mesh_modifiers"] = scene.batch_export_apply_mods
+            options["use_mesh_modifiers"] = settings.apply_mods
             bpy.ops.export_scene.fbx(**options)
 
-        elif scene.batch_export_file_format == "glTF":
-            options = load_operator_preset('export_scene.gltf', scene.batch_export_gltf_preset)
+        elif settings.file_format == "glTF":
+            options = load_operator_preset('export_scene.gltf', settings.gltf_preset.string)
             options["filepath"] = fp
             options["use_selection"] = True
-            options["export_apply"] = scene.batch_export_apply_mods
+            options["export_apply"] = settings.apply_mods
             bpy.ops.export_scene.gltf(**options)
 
-        elif scene.batch_export_file_format == "OBJ":
-            options = load_operator_preset('export_scene.obj', scene.batch_export_obj_preset)
+        elif settings.file_format == "OBJ":
+            options = load_operator_preset('export_scene.obj', settings.obj_preset)
             options["filepath"] = fp+".obj"
             options["use_selection"] = True
-            options["use_mesh_modifiers"] = scene.batch_export_apply_mods
+            options["use_mesh_modifiers"] = settings.apply_mods
             bpy.ops.export_scene.obj(**options)
 
-        elif scene.batch_export_file_format == "X3D":
-            options = load_operator_preset('export_scene.x3d', scene.batch_export_x3d_preset)
+        elif settings.file_format == "X3D":
+            options = load_operator_preset('export_scene.x3d', settings.x3d_preset)
             options["filepath"] = fp+".x3d"
             options["use_selection"] = True
-            options["use_mesh_modifiers"] = scene.batch_export_apply_mods
+            options["use_mesh_modifiers"] = settings.apply_mods
             bpy.ops.export_scene.x3d(**options)
 
         # Reset the transform to what it was before
@@ -357,26 +355,25 @@ class EXPORT_MESH_OT_batch(Operator):
         self.file_count += 1
 
 
-def register():
-    Scene = bpy.types.Scene
+class BatchExportSettings(PropertyGroup):
     # File Settings:
-    Scene.batch_export_directory = StringProperty(
+    directory: StringProperty(
         name="Directory",
         description="Which folder to place the exported files\nDefault of // will export to same directory as the blend file (only works if the blend file is saved)",
         default="//",
         subtype='DIR_PATH',
     )
-    Scene.batch_export_prefix = StringProperty(
+    prefix: StringProperty(
         name="Prefix",
         description="Text to put at the beginning of all the exported file names",
     )
-    Scene.batch_export_suffix = StringProperty(
+    suffix: StringProperty(
         name="Suffix",
         description="Text to put at the end of all the exported file names",
     )
 
     # Export Settings:
-    Scene.batch_export_file_format = EnumProperty(
+    file_format: EnumProperty(
         name="Format",
         description="Which file format to export to",
         items=[
@@ -391,7 +388,7 @@ def register():
         ],
         default="glTF",
     )
-    Scene.batch_export_mode = EnumProperty(
+    mode: EnumProperty(
         name="Mode",
         description="What to export",
         items=[
@@ -403,7 +400,7 @@ def register():
         ],
         default="OBJECT_PARENTS",
     )
-    Scene.batch_export_limit = EnumProperty(
+    limit: EnumProperty(
         name="Limit to",
         description="How to limit which objects are exported",
         items=[
@@ -413,7 +410,7 @@ def register():
     )
 
     # Format specific options:
-    Scene.batch_export_usd_format = EnumProperty(
+    usd_format: EnumProperty(
         name="Format",
         items=[
             (".usd", "Plain (.usd)",
@@ -423,40 +420,40 @@ def register():
         ],
         default=".usdc",
     )
-    Scene.batch_export_ply_ascii = BoolProperty(name="ASCII Format", default=False)
-    Scene.batch_export_stl_ascii = BoolProperty(name="ASCII Format", default=False)
-    Scene.batch_export_dae_preset = EnumProperty(
+    ply_ascii: BoolProperty(name="ASCII Format", default=False)
+    stl_ascii: BoolProperty(name="ASCII Format", default=False)
+    dae_preset: EnumProperty(
         name="Preset",
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Collada (.dae))",
         items=lambda self, context : get_operator_presets('wm.collada_export'),
     )
-    Scene.batch_export_fbx_preset = EnumProperty(
+    fbx_preset: EnumProperty(
         name="Preset",
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > FBX (.fbx))",
         items=lambda self, context : get_operator_presets('export_scene.fbx'),
     )
-    Scene.batch_export_gltf_preset = EnumProperty(
+    gltf_preset: EnumProperty(
         name="Preset",
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > glTF (.glb/.gltf))",
         items=lambda self, context : get_operator_presets('export_scene.gltf'),
     )
-    Scene.batch_export_obj_preset = EnumProperty(
+    obj_preset: EnumProperty(
         name="Preset",
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Wavefront (.obj))",
         items=lambda self, context : get_operator_presets('export_scene.obj'),
     )
-    Scene.batch_export_x3d_preset = EnumProperty(
+    x3d_preset: EnumProperty(
         name="Preset",
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > X3D Extensible 3D (.x3d))",
         items=lambda self, context : get_operator_presets('export_scene.x3d'),
     )
 
-    Scene.batch_export_apply_mods = BoolProperty(
+    apply_mods: BoolProperty(
         name="Apply Modifiers",
         description="Should the modifiers by applied onto the exported mesh?\nCan't export Shape Keys with this on",
         default=True,
     )
-    Scene.batch_export_object_types = EnumProperty(
+    object_types: EnumProperty(
         name="Object Types",
         options={'ENUM_FLAG'},
         items=[
@@ -476,17 +473,23 @@ def register():
         )
 
     # Transform:
-    Scene.batch_export_set_location = BoolProperty(name="Set Location", default=True)
-    Scene.batch_export_location = FloatVectorProperty(name="Location", default=(0.0, 0.0, 0.0), subtype="TRANSLATION")
-    Scene.batch_export_set_rotation = BoolProperty(name="Set Rotation (XYZ Euler)", default=True)
-    Scene.batch_export_rotation = FloatVectorProperty(name="Rotation", default=(0.0, 0.0, 0.0), subtype="EULER")
-    Scene.batch_export_set_scale = BoolProperty(name="Set Scale", default=False)
-    Scene.batch_export_scale = FloatVectorProperty(name="Scale", default=(1.0, 1.0, 1.0), subtype="XYZ")
+    set_location: BoolProperty(name="Set Location", default=True)
+    location: FloatVectorProperty(name="Location", default=(0.0, 0.0, 0.0), subtype="TRANSLATION")
+    set_rotation: BoolProperty(name="Set Rotation (XYZ Euler)", default=True)
+    rotation: FloatVectorProperty(name="Rotation", default=(0.0, 0.0, 0.0), subtype="EULER")
+    set_scale: BoolProperty(name="Set Scale", default=False)
+    scale: FloatVectorProperty(name="Scale", default=(1.0, 1.0, 1.0), subtype="XYZ")
 
+
+def register():
     # Register classes
-    bpy.utils.register_class(POPOVER_PT_batch_export)
     bpy.utils.register_class(BatchExportPreferences)
+    bpy.utils.register_class(BatchExportSettings)
+    bpy.utils.register_class(POPOVER_PT_batch_export)
     bpy.utils.register_class(EXPORT_MESH_OT_batch)
+
+    # Add batch export settings to Scene type
+    bpy.types.Scene.batch_export_settings = PointerProperty(type=BatchExportSettings)
 
     # Show addon UI
     prefs = bpy.context.preferences.addons[__name__].preferences
@@ -499,33 +502,13 @@ def register():
 
 
 def unregister():
-    # Delete all the settings from Scene type (Doesn't actually remove existing ones from scenes)
-    del bpy.types.Scene.batch_export_directory
-    del bpy.types.Scene.batch_export_prefix
-    del bpy.types.Scene.batch_export_suffix
-    del bpy.types.Scene.batch_export_file_format
-    del bpy.types.Scene.batch_export_mode
-    del bpy.types.Scene.batch_export_limit
-    del bpy.types.Scene.batch_export_usd_format
-    del bpy.types.Scene.batch_export_ply_ascii
-    del bpy.types.Scene.batch_export_stl_ascii
-    del bpy.types.Scene.batch_export_dae_preset
-    del bpy.types.Scene.batch_export_fbx_preset
-    del bpy.types.Scene.batch_export_gltf_preset
-    del bpy.types.Scene.batch_export_obj_preset
-    del bpy.types.Scene.batch_export_x3d_preset
-    del bpy.types.Scene.batch_export_apply_mods
-    del bpy.types.Scene.batch_export_object_types
-    del bpy.types.Scene.batch_export_set_location
-    del bpy.types.Scene.batch_export_location
-    del bpy.types.Scene.batch_export_set_rotation
-    del bpy.types.Scene.batch_export_rotation
-    del bpy.types.Scene.batch_export_set_scale
-    del bpy.types.Scene.batch_export_scale
+    # Delete the settings from Scene type (Doesn't actually remove existing ones from scenes)
+    del bpy.types.Scene.batch_export_settings
 
     # Unregister Classes
-    bpy.utils.unregister_class(POPOVER_PT_batch_export)
     bpy.utils.unregister_class(BatchExportPreferences)
+    bpy.utils.unregister_class(BatchExportSettings)
+    bpy.utils.unregister_class(POPOVER_PT_batch_export)
     bpy.utils.unregister_class(EXPORT_MESH_OT_batch)
 
     # Remove UI

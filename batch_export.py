@@ -40,7 +40,7 @@ def load_operator_preset(operator, preset):
         return options
 
     for d in bpy.utils.script_paths(subdir="presets/operator/" + operator):
-        fp = d + "/" + preset
+        fp = "".join([d, "/", preset, ".py"])
         if os.path.isfile(fp): # Found the preset file
             print("Using preset " + fp)
             file = open(fp, 'r')
@@ -63,7 +63,7 @@ def draw_settings(self, context):
     self.layout.use_property_split = True
     self.layout.use_property_decorate = False
 
-    settings = context.scene.batch_export_settings
+    settings = context.scene.batch_export
     self.layout.operator('export_mesh.batch', icon='EXPORT')
 
     self.layout.separator()
@@ -187,7 +187,7 @@ class EXPORT_MESH_OT_batch(Operator):
     file_count = 0
 
     def execute(self, context):
-        settings = context.scene.batch_export_settings
+        settings = context.scene.batch_export
 
         base_dir = settings.directory
         if not bpy.path.abspath('//'): # Then the blend file hasn't been saved
@@ -263,12 +263,12 @@ class EXPORT_MESH_OT_batch(Operator):
 
     def select_children_recursive(self, obj, context):
         for c in obj.children:
-            if obj.type in context.scene.batch_export_settings.object_types:
+            if obj.type in context.scene.batch_export.object_types:
                 c.select_set(True)
             self.select_children_recursive(c, context)
 
     def export_selection(self, itemname, context, base_dir):
-        settings = context.scene.batch_export_settings
+        settings = context.scene.batch_export
         # save the transform to be reset later:
         old_locations = []
         old_rotations = []
@@ -323,7 +323,7 @@ class EXPORT_MESH_OT_batch(Operator):
             bpy.ops.export_scene.fbx(**options)
 
         elif settings.file_format == "glTF":
-            options = load_operator_preset('export_scene.gltf', settings.gltf_preset.string)
+            options = load_operator_preset('export_scene.gltf', settings.gltf_preset)
             options["filepath"] = fp
             options["use_selection"] = True
             options["export_apply"] = settings.apply_mods
@@ -489,7 +489,7 @@ def register():
     bpy.utils.register_class(EXPORT_MESH_OT_batch)
 
     # Add batch export settings to Scene type
-    bpy.types.Scene.batch_export_settings = PointerProperty(type=BatchExportSettings)
+    bpy.types.Scene.batch_export = PointerProperty(type=BatchExportSettings)
 
     # Show addon UI
     prefs = bpy.context.preferences.addons[__name__].preferences
@@ -503,7 +503,7 @@ def register():
 
 def unregister():
     # Delete the settings from Scene type (Doesn't actually remove existing ones from scenes)
-    del bpy.types.Scene.batch_export_settings
+    del bpy.types.Scene.batch_export
 
     # Unregister Classes
     bpy.utils.unregister_class(BatchExportPreferences)

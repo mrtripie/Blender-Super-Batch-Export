@@ -6,7 +6,7 @@ import os
 bl_info = {
     "name": "Batch Export",
     "author": "MrTriPie",
-    "version": (2, 0, 2),
+    "version": (2, 0, 3),
     "blender": (3, 00, 0),
     "category": "Import-Export",
     "location": "Set in preferences below. Default: Top Bar (After File, Edit, ...Help)",
@@ -19,24 +19,20 @@ bl_info = {
 preset_enum_items_refs = {}
 
 def get_operator_presets(operator):
-    presets = [("NONE", "", "", 0)]
+    presets = [('NO_PRESET', "(no preset)", "", 0)]
     for d in bpy.utils.script_paths(subdir="presets/operator/" + operator):
         for f in os.listdir(d):
             if not f.endswith(".py"):
                 continue
             f = os.path.splitext(f)[0]
-            i = hash(f) # use a hash of the filename to be most likely unique
-            # use % to limit to C short int size. Include negative sign :
-            # (not sure why it has to be short int, should be long, but the number becomes inaccurate in blender)
-            i = (i % 32767) * (-1 if i < 0 else 1)
-            presets.append((f, f, "", i))
+            presets.append((f, f, ""))
     preset_enum_items_refs[operator] = presets # Blender's doc warns that not keeping reference to enum props array can cause crashs and weird issues
     return presets
 
 
 def load_operator_preset(operator, preset):
     options = {}
-    if preset == 'NONE':
+    if preset == 'NO_PRESET':
         return options
 
     for d in bpy.utils.script_paths(subdir="presets/operator/" + operator):
@@ -57,6 +53,13 @@ def load_operator_preset(operator, preset):
     # If it didn't find the preset, use empty options
     # (the preset option should look blank if the file doesn't exist anyway)
     return options
+
+
+def get_preset_index(operator, option):
+    for p in range(len(preset_enum_items_refs[operator])):
+        if preset_enum_items_refs[operator][p][0] == option:
+            return p
+    return 0
 
 
 def draw_settings(self, context):
@@ -84,7 +87,7 @@ def draw_settings(self, context):
 
     col.label(text=settings.file_format + " Settings:")
     if settings.file_format == 'DAE':
-        col.prop(settings, 'dae_preset')
+        col.prop(settings, 'dae_preset_enum')
     elif settings.file_format == 'USD':
         col.prop(settings, 'usd_format')
     elif settings.file_format == 'PLY':
@@ -92,13 +95,13 @@ def draw_settings(self, context):
     elif settings.file_format == 'STL':
         col.prop(settings, 'stl_ascii')
     elif settings.file_format == 'FBX':
-        col.prop(settings, 'fbx_preset')
+        col.prop(settings, 'fbx_preset_enum')
     elif settings.file_format == 'glTF':
-        col.prop(settings, 'gltf_preset')
+        col.prop(settings, 'gltf_preset_enum')
     elif settings.file_format == 'OBJ':
-        col.prop(settings, 'obj_preset')
+        col.prop(settings, 'obj_preset_enum')
     elif settings.file_format == 'X3D':
-        col.prop(settings, 'x3d_preset')
+        col.prop(settings, 'x3d_preset_enum')
 
     if settings.file_format != 'USD':
         self.layout.prop(settings, 'apply_mods')
@@ -422,30 +425,46 @@ class BatchExportSettings(PropertyGroup):
     )
     ply_ascii: BoolProperty(name="ASCII Format", default=False)
     stl_ascii: BoolProperty(name="ASCII Format", default=False)
-    dae_preset: EnumProperty(
-        name="Preset",
+    # Presets: A string property for saving your option (without new presets changing your choice), and enum property for choosing
+    dae_preset: StringProperty(default='NO_PRESET')
+    dae_preset_enum: EnumProperty(
+        name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Collada (.dae))",
         items=lambda self, context : get_operator_presets('wm.collada_export'),
+        get=lambda self : get_preset_index('wm.collada_export', self.dae_preset),
+        set=lambda self, value : setattr(self, 'dae_preset', preset_enum_items_refs['wm.collada_export'][value][0]),
     )
-    fbx_preset: EnumProperty(
-        name="Preset",
+    fbx_preset: StringProperty(default='NO_PRESET')
+    fbx_preset_enum: EnumProperty(
+        name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > FBX (.fbx))",
         items=lambda self, context : get_operator_presets('export_scene.fbx'),
+        get=lambda self : get_preset_index('export_scene.fbx', self.fbx_preset),
+        set=lambda self, value : setattr(self, 'fbx_preset', preset_enum_items_refs['export_scene.fbx'][value][0]),
     )
-    gltf_preset: EnumProperty(
-        name="Preset",
+    gltf_preset: StringProperty(default='NO_PRESET')
+    gltf_preset_enum: EnumProperty(
+        name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > glTF (.glb/.gltf))",
         items=lambda self, context : get_operator_presets('export_scene.gltf'),
+        get=lambda self : get_preset_index('export_scene.gltf', self.gltf_preset),
+        set=lambda self, value : setattr(self, 'gltf_preset', preset_enum_items_refs['export_scene.gltf'][value][0]),
     )
-    obj_preset: EnumProperty(
-        name="Preset",
+    obj_preset: StringProperty(default='NO_PRESET')
+    obj_preset_enum: EnumProperty(
+        name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Wavefront (.obj))",
         items=lambda self, context : get_operator_presets('export_scene.obj'),
+        get=lambda self : get_preset_index('export_scene.obj', self.obj_preset),
+        set=lambda self, value : setattr(self, 'obj_preset', preset_enum_items_refs['export_scene.obj'][value][0]),
     )
-    x3d_preset: EnumProperty(
-        name="Preset",
+    x3d_preset: StringProperty(default='NO_PRESET')
+    x3d_preset_enum: EnumProperty(
+        name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > X3D Extensible 3D (.x3d))",
         items=lambda self, context : get_operator_presets('export_scene.x3d'),
+        get=lambda self : get_preset_index('export_scene.x3d', self.x3d_preset),
+        set=lambda self, value : setattr(self, 'x3d_preset', preset_enum_items_refs['export_scene.x3d'][value][0]),
     )
 
     apply_mods: BoolProperty(

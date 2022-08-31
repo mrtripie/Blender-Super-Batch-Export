@@ -1,5 +1,5 @@
 # Blender Batch Export
-Allows you to export multiple meshes in a blend file to separate files in one click. Supports: **DAE, USD, PLY, STL, FBX, glTF, OBJ, X3D**
+Allows you to export multiple objects in a blend file to separate files in one click. Supports: **DAE, ABC, USD, SVG, PDF, OBJ, PLY, STL, FBX, glTF, X3D**
 
 It can be found in a few differnet places such as the **Top Bar** (by File, Edit, Render, Window, Help), the **3D Viewport Header** (next to View, Select, Add...), or the **3D Viewport Side Bar Export Tab**. You can set where to show it in the **Addon Location setting under Edit > Preferences > Add-ons > Batch Export > Preferences**.
 
@@ -20,7 +20,7 @@ Batch Export button: Press after everything is set up to export your meshes to s
 ### Export Settings:
 Export settings are stored in each scene. You can create your own default settings by opening a new file, choosing the settings you want as default, and pressing File > Defaults > Save Startup File.
 
-**Format:** Which file format to export to, supports: **DAE, USD, PLY, STL, FBX, glTF, OBJ, X3D**
+**Format:** Which file format to export to, supports: **DAE, ABC, USD, PLY, STL, FBX, glTF, OBJ, X3D**
 
 **Mode:** Three different modes for deciding what goes in which file:
 * **Objects:** Export each object to a seperate file.
@@ -31,7 +31,7 @@ Export settings are stored in each scene. You can create your own default settin
 
 **Apply Modifiers:** Should modifiers be applied to the exported meshes? Warning: Having this on prevents shape keys from exporting.
 
-Formats also have format-specific options. DAE, FBX, glTF, OBJ, and X3D can choose a preset (created in export options from the normal File > Export > File Format menus), which can be used to set more specific settings.
+Formats also have format-specific options. ABC, DAE, USD, OBJ, FBX, glTF, and X3D can choose a preset (created in export options from the normal File > Export > File Format menus), which can be used to set more specific settings.
 
 ### Object Types:
 Choose which object types to export. WARNING: Blender doesn't support exporting all types to all formats, so if Blender's exporter for that format doesn't support an object type selected here, you may end up with empty files.

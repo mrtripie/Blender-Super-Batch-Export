@@ -110,6 +110,8 @@ def draw_settings(self, context):
     elif settings.file_format == 'USD':
         col.prop(settings, 'usd_format')
         col.prop(settings, 'usd_preset_enum')
+    elif settings.file_format == 'OBJ':
+        col.prop(settings, 'obj_preset_enum')
     elif settings.file_format == 'PLY':
         col.prop(settings, 'ply_ascii')
     elif settings.file_format == 'STL':
@@ -118,8 +120,6 @@ def draw_settings(self, context):
         col.prop(settings, 'fbx_preset_enum')
     elif settings.file_format == 'glTF':
         col.prop(settings, 'gltf_preset_enum')
-    elif settings.file_format == 'OBJ':
-        col.prop(settings, 'obj_preset_enum')
     elif settings.file_format == 'X3D':
         col.prop(settings, 'x3d_preset_enum')
 
@@ -363,6 +363,14 @@ class EXPORT_MESH_OT_batch(Operator):
             bpy.ops.wm.gpencil_export_pdf(
                 filepath=fp+".pdf", selected_object_type='SELECTED')
 
+        elif settings.file_format == "OBJ":
+            options = load_operator_preset(
+                'wm.obj_export', settings.obj_preset)
+            options["filepath"] = fp+".obj"
+            options["export_selected_objects"] = True
+            options["apply_modifiers"] = settings.apply_mods
+            bpy.ops.wm.obj_export(**options)
+
         elif settings.file_format == "PLY":
             bpy.ops.export_mesh.ply(
                 filepath=fp+".ply", use_ascii=settings.ply_ascii, use_selection=True, use_mesh_modifiers=settings.apply_mods)
@@ -386,14 +394,6 @@ class EXPORT_MESH_OT_batch(Operator):
             options["use_selection"] = True
             options["export_apply"] = settings.apply_mods
             bpy.ops.export_scene.gltf(**options)
-
-        elif settings.file_format == "OBJ":
-            options = load_operator_preset(
-                'wm.obj_export', settings.obj_preset)
-            options["filepath"] = fp+".obj"
-            options["export_selected_objects"] = True
-            options["apply_modifiers"] = settings.apply_mods
-            bpy.ops.wm.obj_export(**options)
 
         elif settings.file_format == "X3D":
             options = load_operator_preset(
@@ -442,11 +442,11 @@ class BatchExportSettings(PropertyGroup):
             ("USD", "Universal Scene Description (.usd/.usdc/.usda)", "", 2),
             ("SVG", "Grease Pencil as SVG (.svg)", "", 10),
             ("PDF", "Grease Pencil as PDF (.pdf)", "", 11),
+            ("OBJ", "Wavefront (.obj)", "", 7),
             ("PLY", "Stanford (.ply)", "", 3),
             ("STL", "STL (.stl)", "", 4),
             ("FBX", "FBX (.fbx)", "", 5),
             ("glTF", "glTF (.glb/.gltf)", "", 6),
-            ("OBJ", "Wavefront (.obj)", "", 7),
             ("X3D", "X3D Extensible 3D (.x3d)", "", 8),
         ],
         default="glTF",
@@ -517,6 +517,15 @@ class BatchExportSettings(PropertyGroup):
         set=lambda self, value: setattr(
             self, 'usd_preset', preset_enum_items_refs['wm.usd_export'][value][0]),
     )
+    obj_preset: StringProperty(default='NO_PRESET')
+    obj_preset_enum: EnumProperty(
+        name="Preset", options={'SKIP_SAVE'},
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Wavefront (.obj))",
+        items=lambda self, context: get_operator_presets('wm.obj_export'),
+        get=lambda self: get_preset_index('wm.obj_export', self.obj_preset),
+        set=lambda self, value: setattr(
+            self, 'obj_preset', preset_enum_items_refs['wm.obj_export'][value][0]),
+    )
     fbx_preset: StringProperty(default='NO_PRESET')
     fbx_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
@@ -535,15 +544,6 @@ class BatchExportSettings(PropertyGroup):
             'export_scene.gltf', self.gltf_preset),
         set=lambda self, value: setattr(
             self, 'gltf_preset', preset_enum_items_refs['export_scene.gltf'][value][0]),
-    )
-    obj_preset: StringProperty(default='NO_PRESET')
-    obj_preset_enum: EnumProperty(
-        name="Preset", options={'SKIP_SAVE'},
-        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Wavefront (.obj))",
-        items=lambda self, context: get_operator_presets('wm.obj_export'),
-        get=lambda self: get_preset_index('wm.obj_export', self.obj_preset),
-        set=lambda self, value: setattr(
-            self, 'obj_preset', preset_enum_items_refs['wm.obj_export'][value][0]),
     )
     x3d_preset: StringProperty(default='NO_PRESET')
     x3d_preset_enum: EnumProperty(

@@ -101,12 +101,12 @@ def draw_settings(self, context):
     col = self.layout.column()
 
     col.label(text=settings.file_format + " Settings:")
-    if settings.file_format == 'ABC':
+    if settings.file_format == 'DAE':
+        col.prop(settings, 'dae_preset_enum')
+    elif settings.file_format == 'ABC':
         col.prop(settings, 'abc_preset_enum')
         col.prop(settings, 'frame_start')
         col.prop(settings, 'frame_end')
-    elif settings.file_format == 'DAE':
-        col.prop(settings, 'dae_preset_enum')
     elif settings.file_format == 'USD':
         col.prop(settings, 'usd_format')
         col.prop(settings, 'usd_preset_enum')
@@ -324,7 +324,16 @@ class EXPORT_MESH_OT_batch(Operator):
         fp = os.path.join(base_dir, name)
 
         # Export
-        if settings.file_format == "ABC":
+
+        if settings.file_format == "DAE":
+            options = load_operator_preset(
+                'wm.collada_export', settings.dae_preset)
+            options["filepath"] = fp
+            options["selected"] = True
+            options["apply_modifiers"] = settings.apply_mods
+            bpy.ops.wm.collada_export(**options)
+
+        elif settings.file_format == "ABC":
             options = load_operator_preset(
                 'wm.alembic_export', settings.abc_preset)
             options["filepath"] = fp+".abc"
@@ -339,20 +348,20 @@ class EXPORT_MESH_OT_batch(Operator):
             # docs.blender.org/api/current/bpy.ops.html?highlight=exec_default#execution-context
             bpy.ops.wm.alembic_export('EXEC_REGION_WIN', **options)
 
-        elif settings.file_format == "DAE":
-            options = load_operator_preset(
-                'wm.collada_export', settings.dae_preset)
-            options["filepath"] = fp
-            options["selected"] = True
-            options["apply_modifiers"] = settings.apply_mods
-            bpy.ops.wm.collada_export(**options)
-
         elif settings.file_format == "USD":
             options = load_operator_preset(
                 'wm.usd_export', settings.usd_preset)
             options["filepath"] = fp+settings.usd_format
             options["selected_objects_only"] = True
             bpy.ops.wm.usd_export(**options)
+
+        elif settings.file_format == "SVG":
+            bpy.ops.wm.gpencil_export_svg(
+                filepath=fp+".svg", selected_object_type='SELECTED')
+
+        elif settings.file_format == "PDF":
+            bpy.ops.wm.gpencil_export_pdf(
+                filepath=fp+".pdf", selected_object_type='SELECTED')
 
         elif settings.file_format == "PLY":
             bpy.ops.export_mesh.ply(
@@ -428,9 +437,11 @@ class BatchExportSettings(PropertyGroup):
         name="Format",
         description="Which file format to export to",
         items=[
-            ("ABC", "Alembic (.abc)", "", 0),
             ("DAE", "Collada (.dae)", "", 1),
+            ("ABC", "Alembic (.abc)", "", 9),
             ("USD", "Universal Scene Description (.usd/.usdc/.usda)", "", 2),
+            ("SVG", "Grease Pencil as SVG (.svg)", "", 10),
+            ("PDF", "Grease Pencil as PDF (.pdf)", "", 11),
             ("PLY", "Stanford (.ply)", "", 3),
             ("STL", "STL (.stl)", "", 4),
             ("FBX", "FBX (.fbx)", "", 5),
@@ -570,7 +581,7 @@ class BatchExportSettings(PropertyGroup):
             ('SURFACE', "Surface", "", 4),
             ('META', "Metaball", "", 8),
             ('FONT', "Text", "", 16),
-            # ('GPENCIL', "Grease Pencil", "", 32), # I don't think its supported by anything but SVG currently.
+            ('GPENCIL', "Grease Pencil", "", 32),
             ('ARMATURE', "Armature", "", 64),
             ('EMPTY', "Empty", "", 128),
             ('LIGHT', "Lamp", "", 256),

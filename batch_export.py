@@ -389,11 +389,11 @@ class EXPORT_MESH_OT_batch(Operator):
 
         elif settings.file_format == "OBJ":
             options = load_operator_preset(
-                'export_scene.obj', settings.obj_preset)
+                'wm.obj_export', settings.obj_preset)
             options["filepath"] = fp+".obj"
-            options["use_selection"] = True
-            options["use_mesh_modifiers"] = settings.apply_mods
-            bpy.ops.export_scene.obj(**options)
+            options["export_selected_objects"] = True
+            options["apply_modifiers"] = settings.apply_mods
+            bpy.ops.wm.obj_export(**options)
 
         elif settings.file_format == "X3D":
             options = load_operator_preset(
@@ -540,10 +540,10 @@ class BatchExportSettings(PropertyGroup):
     obj_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Wavefront (.obj))",
-        items=lambda self, context: get_operator_presets('export_scene.obj'),
-        get=lambda self: get_preset_index('export_scene.obj', self.obj_preset),
+        items=lambda self, context: get_operator_presets('wm.obj_export'),
+        get=lambda self: get_preset_index('wm.obj_export', self.obj_preset),
         set=lambda self, value: setattr(
-            self, 'obj_preset', preset_enum_items_refs['export_scene.obj'][value][0]),
+            self, 'obj_preset', preset_enum_items_refs['wm.obj_export'][value][0]),
     )
     x3d_preset: StringProperty(default='NO_PRESET')
     x3d_preset_enum: EnumProperty(

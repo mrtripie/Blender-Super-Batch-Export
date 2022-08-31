@@ -6,8 +6,8 @@ import os
 bl_info = {
     "name": "Batch Export",
     "author": "MrTriPie",
-    "version": (2, 0, 3),
-    "blender": (3, 00, 0),
+    "version": (2, 1, 0),
+    "blender": (3, 3, 0),
     "category": "Import-Export",
     "location": "Set in preferences below. Default: Top Bar (After File, Edit, ...Help)",
     "description": "Batch export the objects in your scene into seperate files",
@@ -18,6 +18,7 @@ bl_info = {
 
 preset_enum_items_refs = {}
 
+
 def get_operator_presets(operator):
     presets = [('NO_PRESET', "(no preset)", "", 0)]
     for d in bpy.utils.script_paths(subdir="presets/operator/" + operator):
@@ -26,7 +27,8 @@ def get_operator_presets(operator):
                 continue
             f = os.path.splitext(f)[0]
             presets.append((f, f, ""))
-    preset_enum_items_refs[operator] = presets # Blender's doc warns that not keeping reference to enum props array can cause crashs and weird issues
+    # Blender's doc warns that not keeping reference to enum props array can cause crashs and weird issues
+    preset_enum_items_refs[operator] = presets
     return presets
 
 
@@ -37,7 +39,7 @@ def load_operator_preset(operator, preset):
 
     for d in bpy.utils.script_paths(subdir="presets/operator/" + operator):
         fp = "".join([d, "/", preset, ".py"])
-        if os.path.isfile(fp): # Found the preset file
+        if os.path.isfile(fp):  # Found the preset file
             print("Using preset " + fp)
             file = open(fp, 'r')
             for line in file.readlines():
@@ -90,6 +92,7 @@ def draw_settings(self, context):
         col.prop(settings, 'dae_preset_enum')
     elif settings.file_format == 'USD':
         col.prop(settings, 'usd_format')
+        col.prop(settings, 'usd_preset_enum')
     elif settings.file_format == 'PLY':
         col.prop(settings, 'ply_ascii')
     elif settings.file_format == 'STL':
@@ -172,9 +175,12 @@ class BatchExportPreferences(AddonPreferences):
         name="Addon Location",
         description="Where to put the Batch Export Addon UI",
         items=[
-            ('TOPBAR', "Top Bar", "Place on Blender's Top Bar (Next to File, Edit, Render, Window, Help)"),
-            ('3DHEADER', "3D Viewport Header", "Place in the 3D Viewport Header (Next to View, Select, Add, etc.)"),
-            ('3DSIDE', "3D Viewport Side Panel (Export Tab)", "Place in the 3D Viewport's right side panel, in the Export Tab"),
+            ('TOPBAR', "Top Bar",
+             "Place on Blender's Top Bar (Next to File, Edit, Render, Window, Help)"),
+            ('3DHEADER', "3D Viewport Header",
+             "Place in the 3D Viewport Header (Next to View, Select, Add, etc.)"),
+            ('3DSIDE', "3D Viewport Side Panel (Export Tab)",
+             "Place in the 3D Viewport's right side panel, in the Export Tab"),
         ],
         update=addon_location_updated,
     )
@@ -193,11 +199,13 @@ class EXPORT_MESH_OT_batch(Operator):
         settings = context.scene.batch_export
 
         base_dir = settings.directory
-        if not bpy.path.abspath('//'): # Then the blend file hasn't been saved
-            if base_dir != bpy.path.abspath(base_dir): # Then the path should be relative
-                self.report({'ERROR'}, "Save .blend file somewhere before exporting to relative directory\n(or use an absolute directory)")
+        if not bpy.path.abspath('//'):  # Then the blend file hasn't been saved
+            # Then the path should be relative
+            if base_dir != bpy.path.abspath(base_dir):
+                self.report(
+                    {'ERROR'}, "Save .blend file somewhere before exporting to relative directory\n(or use an absolute directory)")
                 return {'FINISHED'}
-        base_dir = bpy.path.abspath(base_dir) # convert to absolute path
+        base_dir = bpy.path.abspath(base_dir)  # convert to absolute path
         if not os.path.isdir(base_dir):
             self.report({'ERROR'}, "Export directory doesn't exist")
             return {'FINISHED'}
@@ -214,7 +222,7 @@ class EXPORT_MESH_OT_batch(Operator):
         mode = ''
         if obj_active:
             mode = obj_active.mode
-            bpy.ops.object.mode_set(mode='OBJECT') # Only works in Object mode
+            bpy.ops.object.mode_set(mode='OBJECT')  # Only works in Object mode
 
         if settings.mode == 'OBJECTS':
             for obj in objects:
@@ -260,7 +268,8 @@ class EXPORT_MESH_OT_batch(Operator):
         if self.file_count == 0:
             self.report({'ERROR'}, "NOTHING TO EXPORT")
         else:
-            self.report({'INFO'}, "Exported " + str(self.file_count) + " file(s)")
+            self.report({'INFO'}, "Exported " +
+                        str(self.file_count) + " file(s)")
 
         return {'FINISHED'}
 
@@ -300,15 +309,19 @@ class EXPORT_MESH_OT_batch(Operator):
 
         # Export
         if settings.file_format == "DAE":
-            options = load_operator_preset('wm.collada_export', settings.dae_preset)
+            options = load_operator_preset(
+                'wm.collada_export', settings.dae_preset)
             options["filepath"] = fp
             options["selected"] = True
             options["apply_modifiers"] = settings.apply_mods
             bpy.ops.wm.collada_export(**options)
 
         elif settings.file_format == "USD":
-            bpy.ops.wm.usd_export(
-                filepath=fp+settings.usd_format, selected_objects_only=True)
+            options = load_operator_preset(
+                'wm.usd_export', settings.usd_preset)
+            options["filepath"] = fp+settings.usd_format
+            options["selected_objects_only"] = True
+            bpy.ops.wm.usd_export(**options)
 
         elif settings.file_format == "PLY":
             bpy.ops.export_mesh.ply(
@@ -319,28 +332,32 @@ class EXPORT_MESH_OT_batch(Operator):
                 filepath=fp+".stl", ascii=settings.stl_ascii, use_selection=True, use_mesh_modifiers=settings.apply_mods)
 
         elif settings.file_format == "FBX":
-            options = load_operator_preset('export_scene.fbx', settings.fbx_preset)
+            options = load_operator_preset(
+                'export_scene.fbx', settings.fbx_preset)
             options["filepath"] = fp+".fbx"
             options["use_selection"] = True
             options["use_mesh_modifiers"] = settings.apply_mods
             bpy.ops.export_scene.fbx(**options)
 
         elif settings.file_format == "glTF":
-            options = load_operator_preset('export_scene.gltf', settings.gltf_preset)
+            options = load_operator_preset(
+                'export_scene.gltf', settings.gltf_preset)
             options["filepath"] = fp
             options["use_selection"] = True
             options["export_apply"] = settings.apply_mods
             bpy.ops.export_scene.gltf(**options)
 
         elif settings.file_format == "OBJ":
-            options = load_operator_preset('export_scene.obj', settings.obj_preset)
+            options = load_operator_preset(
+                'export_scene.obj', settings.obj_preset)
             options["filepath"] = fp+".obj"
             options["use_selection"] = True
             options["use_mesh_modifiers"] = settings.apply_mods
             bpy.ops.export_scene.obj(**options)
 
         elif settings.file_format == "X3D":
-            options = load_operator_preset('export_scene.x3d', settings.x3d_preset)
+            options = load_operator_preset(
+                'export_scene.x3d', settings.x3d_preset)
             options["filepath"] = fp+".x3d"
             options["use_selection"] = True
             options["use_mesh_modifiers"] = settings.apply_mods
@@ -397,9 +414,9 @@ class BatchExportSettings(PropertyGroup):
         items=[
             ("OBJECTS", "Objects", "Each object is exported to its own file", 1),
             ("OBJECT_PARENTS", "Objects by Parents",
-            "Same as 'Objects', but objects that are parents have their\nchildren exported with them instead of by themselves", 2),
+             "Same as 'Objects', but objects that are parents have their\nchildren exported with them instead of by themselves", 2),
             ("COLLECTIONS", "Collections",
-            "Each collection is exported into its own file", 3),
+             "Each collection is exported into its own file", 3),
         ],
         default="OBJECT_PARENTS",
     )
@@ -417,8 +434,9 @@ class BatchExportSettings(PropertyGroup):
         name="Format",
         items=[
             (".usd", "Plain (.usd)",
-            "Can be either binary or ASCII\nIn Blender this exports to binary", 1),
-            (".usdc", "Binary Crate (default) (.usdc)", "Binary, fast, hard to edit", 2),
+             "Can be either binary or ASCII\nIn Blender this exports to binary", 1),
+            (".usdc", "Binary Crate (default) (.usdc)",
+             "Binary, fast, hard to edit", 2),
             (".usda", "ASCII (.usda)", "ASCII Text, slow, easy to edit", 3),
         ],
         default=".usdc",
@@ -430,41 +448,57 @@ class BatchExportSettings(PropertyGroup):
     dae_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Collada (.dae))",
-        items=lambda self, context : get_operator_presets('wm.collada_export'),
-        get=lambda self : get_preset_index('wm.collada_export', self.dae_preset),
-        set=lambda self, value : setattr(self, 'dae_preset', preset_enum_items_refs['wm.collada_export'][value][0]),
+        items=lambda self, context: get_operator_presets('wm.collada_export'),
+        get=lambda self: get_preset_index(
+            'wm.collada_export', self.dae_preset),
+        set=lambda self, value: setattr(
+            self, 'dae_preset', preset_enum_items_refs['wm.collada_export'][value][0]),
+    )
+    usd_preset: StringProperty(default='NO_PRESET')
+    usd_preset_enum: EnumProperty(
+        name="Preset", options={'SKIP_SAVE'},
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Universal Scene Description (.usd, .usdc, .usda))",
+        items=lambda self, context: get_operator_presets('wm.usd_export'),
+        get=lambda self: get_preset_index('wm.usd_export', self.usd_preset),
+        set=lambda self, value: setattr(
+            self, 'usd_preset', preset_enum_items_refs['wm.usd_export'][value][0]),
     )
     fbx_preset: StringProperty(default='NO_PRESET')
     fbx_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > FBX (.fbx))",
-        items=lambda self, context : get_operator_presets('export_scene.fbx'),
-        get=lambda self : get_preset_index('export_scene.fbx', self.fbx_preset),
-        set=lambda self, value : setattr(self, 'fbx_preset', preset_enum_items_refs['export_scene.fbx'][value][0]),
+        items=lambda self, context: get_operator_presets('export_scene.fbx'),
+        get=lambda self: get_preset_index('export_scene.fbx', self.fbx_preset),
+        set=lambda self, value: setattr(
+            self, 'fbx_preset', preset_enum_items_refs['export_scene.fbx'][value][0]),
     )
     gltf_preset: StringProperty(default='NO_PRESET')
     gltf_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > glTF (.glb/.gltf))",
-        items=lambda self, context : get_operator_presets('export_scene.gltf'),
-        get=lambda self : get_preset_index('export_scene.gltf', self.gltf_preset),
-        set=lambda self, value : setattr(self, 'gltf_preset', preset_enum_items_refs['export_scene.gltf'][value][0]),
+        items=lambda self, context: get_operator_presets('export_scene.gltf'),
+        get=lambda self: get_preset_index(
+            'export_scene.gltf', self.gltf_preset),
+        set=lambda self, value: setattr(
+            self, 'gltf_preset', preset_enum_items_refs['export_scene.gltf'][value][0]),
     )
     obj_preset: StringProperty(default='NO_PRESET')
     obj_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Wavefront (.obj))",
-        items=lambda self, context : get_operator_presets('export_scene.obj'),
-        get=lambda self : get_preset_index('export_scene.obj', self.obj_preset),
-        set=lambda self, value : setattr(self, 'obj_preset', preset_enum_items_refs['export_scene.obj'][value][0]),
+        items=lambda self, context: get_operator_presets('export_scene.obj'),
+        get=lambda self: get_preset_index('export_scene.obj', self.obj_preset),
+        set=lambda self, value: setattr(
+            self, 'obj_preset', preset_enum_items_refs['export_scene.obj'][value][0]),
     )
     x3d_preset: StringProperty(default='NO_PRESET')
     x3d_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
         description="Use export settings from a preset.\n(Create in the export settings from the File > Export > X3D Extensible 3D (.x3d))",
-        items=lambda self, context : get_operator_presets('export_scene.x3d'),
-        get=lambda self : get_preset_index('export_scene.x3d', self.x3d_preset),
-        set=lambda self, value : setattr(self, 'x3d_preset', preset_enum_items_refs['export_scene.x3d'][value][0]),
+        items=lambda self, context: get_operator_presets('export_scene.x3d'),
+        get=lambda self: get_preset_index('export_scene.x3d', self.x3d_preset),
+        set=lambda self, value: setattr(
+            self, 'x3d_preset', preset_enum_items_refs['export_scene.x3d'][value][0]),
     )
 
     apply_mods: BoolProperty(
@@ -489,15 +523,18 @@ class BatchExportSettings(PropertyGroup):
         ],
         description="Which object types to export\n(NOT ALL FORMATS WILL SUPPORT THESE)",
         default={'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'ARMATURE'},
-        )
+    )
 
     # Transform:
     set_location: BoolProperty(name="Set Location", default=True)
-    location: FloatVectorProperty(name="Location", default=(0.0, 0.0, 0.0), subtype="TRANSLATION")
+    location: FloatVectorProperty(name="Location", default=(
+        0.0, 0.0, 0.0), subtype="TRANSLATION")
     set_rotation: BoolProperty(name="Set Rotation (XYZ Euler)", default=True)
-    rotation: FloatVectorProperty(name="Rotation", default=(0.0, 0.0, 0.0), subtype="EULER")
+    rotation: FloatVectorProperty(
+        name="Rotation", default=(0.0, 0.0, 0.0), subtype="EULER")
     set_scale: BoolProperty(name="Set Scale", default=False)
-    scale: FloatVectorProperty(name="Scale", default=(1.0, 1.0, 1.0), subtype="XYZ")
+    scale: FloatVectorProperty(
+        name="Scale", default=(1.0, 1.0, 1.0), subtype="XYZ")
 
 
 def register():

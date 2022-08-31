@@ -103,6 +103,7 @@ def draw_settings(self, context):
     col.label(text=settings.file_format + " Settings:")
     if settings.file_format == 'DAE':
         col.prop(settings, 'dae_preset_enum')
+        self.layout.prop(settings, 'apply_mods')
     elif settings.file_format == 'ABC':
         col.prop(settings, 'abc_preset_enum')
         col.prop(settings, 'frame_start')
@@ -112,18 +113,21 @@ def draw_settings(self, context):
         col.prop(settings, 'usd_preset_enum')
     elif settings.file_format == 'OBJ':
         col.prop(settings, 'obj_preset_enum')
+        self.layout.prop(settings, 'apply_mods')
     elif settings.file_format == 'PLY':
         col.prop(settings, 'ply_ascii')
+        self.layout.prop(settings, 'apply_mods')
     elif settings.file_format == 'STL':
         col.prop(settings, 'stl_ascii')
+        self.layout.prop(settings, 'apply_mods')
     elif settings.file_format == 'FBX':
         col.prop(settings, 'fbx_preset_enum')
+        self.layout.prop(settings, 'apply_mods')
     elif settings.file_format == 'glTF':
         col.prop(settings, 'gltf_preset_enum')
+        self.layout.prop(settings, 'apply_mods')
     elif settings.file_format == 'X3D':
         col.prop(settings, 'x3d_preset_enum')
-
-    if settings.file_format != 'USD' and settings.file_format != 'ABC':
         self.layout.prop(settings, 'apply_mods')
 
     self.layout.use_property_split = False

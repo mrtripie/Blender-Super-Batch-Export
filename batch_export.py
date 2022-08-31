@@ -16,9 +16,14 @@ bl_info = {
     "tracker_url": "github.com/mrtripie/Blender-Batch-Export/issues",
 }
 
+# A Dictionary of operator_name: [list of preset EnumProperty item tuples].
+# Blender's doc warns that not keeping reference to enum props array can
+# cause crashs and weird issues.
+# Also useful for the get_preset_index function.
 preset_enum_items_refs = {}
 
-
+# Returns a list of tuples used for an EnumProperty's items (identifier, name, description)
+# identifier, and name are the file name of the preset without the file extension (.py)
 def get_operator_presets(operator):
     presets = [('NO_PRESET', "(no preset)", "", 0)]
     for d in bpy.utils.script_paths(subdir="presets/operator/" + operator):
@@ -27,11 +32,16 @@ def get_operator_presets(operator):
                 continue
             f = os.path.splitext(f)[0]
             presets.append((f, f, ""))
-    # Blender's doc warns that not keeping reference to enum props array can cause crashs and weird issues
+    # Blender's doc warns that not keeping reference to enum props array can
+    # cause crashs and weird issues:
     preset_enum_items_refs[operator] = presets
     return presets
 
-
+# Returns a dictionary of options from an operator's preset.
+# When calling an operator's method, you can use ** before a dictionary
+# in the method's arguments to set the arguments from that dictionary's
+# key: value pairs. Example:
+# bpy.ops.category.operator(**options)
 def load_operator_preset(operator, preset):
     options = {}
     if preset == 'NO_PRESET':
@@ -56,14 +66,17 @@ def load_operator_preset(operator, preset):
     # (the preset option should look blank if the file doesn't exist anyway)
     return options
 
-
-def get_preset_index(operator, option):
+# Finds the index of a preset with preset_name and returns it
+# Useful for transferring the value of a saved preset (in a StringProperty)
+# to the NOT saved EnumProperty for that preset used to present a nice GUI.
+def get_preset_index(operator, preset_name):
     for p in range(len(preset_enum_items_refs[operator])):
-        if preset_enum_items_refs[operator][p][0] == option:
+        if preset_enum_items_refs[operator][p][0] == preset_name:
             return p
     return 0
 
-
+# Draws the .blend file specific settings used in the
+# Popover panel or Side Panel panel
 def draw_settings(self, context):
     self.layout.use_property_split = True
     self.layout.use_property_decorate = False
@@ -127,15 +140,16 @@ def draw_settings(self, context):
     if settings.set_scale:
         col.prop(settings, 'scale', text="")
 
-
-def popover(self, context):
+# Draws the button and popover dropdown button used in the
+# 3D Viewport Header or Top Bar
+def draw_popover(self, context):
     row = self.layout.row()
     row = row.row(align=True)
     row.operator('export_mesh.batch', text='', icon='EXPORT')
     row.popover(panel='POPOVER_PT_batch_export', text='')
 
 
-# Side panel (used with Side Panel option)
+# Side Panel panel (used with Side Panel option)
 class VIEW3D_PT_batch_export(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -155,19 +169,19 @@ class POPOVER_PT_batch_export(Panel):
     def draw(self, context):
         draw_settings(self, context)
 
-
+# Addon settings that are NOT specific to a .blend file
 class BatchExportPreferences(AddonPreferences):
     bl_idname = __name__
 
     def addon_location_updated(self, context):
-        bpy.types.TOPBAR_MT_editor_menus.remove(popover)
-        bpy.types.VIEW3D_MT_editor_menus.remove(popover)
+        bpy.types.TOPBAR_MT_editor_menus.remove(draw_popover)
+        bpy.types.VIEW3D_MT_editor_menus.remove(draw_popover)
         if hasattr(bpy.types, "VIEW3D_PT_batch_export"):
             bpy.utils.unregister_class(VIEW3D_PT_batch_export)
         if self.addon_location == 'TOPBAR':
-            bpy.types.TOPBAR_MT_editor_menus.append(popover)
+            bpy.types.TOPBAR_MT_editor_menus.append(draw_popover)
         elif self.addon_location == '3DHEADER':
-            bpy.types.VIEW3D_MT_editor_menus.append(popover)
+            bpy.types.VIEW3D_MT_editor_menus.append(draw_popover)
         elif self.addon_location == '3DSIDE':
             bpy.utils.register_class(VIEW3D_PT_batch_export)
 
@@ -188,7 +202,7 @@ class BatchExportPreferences(AddonPreferences):
     def draw(self, context):
         self.layout.prop(self, "addon_location")
 
-
+# Operator called when pressing the batch export button.
 class EXPORT_MESH_OT_batch(Operator):
     """Export many objects to seperate files all at once"""
     bl_idname = "export_mesh.batch"
@@ -374,7 +388,7 @@ class EXPORT_MESH_OT_batch(Operator):
         print("exported: ", fp)
         self.file_count += 1
 
-
+# Groups together all the addon settings that are saved in each .blend file
 class BatchExportSettings(PropertyGroup):
     # File Settings:
     directory: StringProperty(
@@ -550,9 +564,9 @@ def register():
     # Show addon UI
     prefs = bpy.context.preferences.addons[__name__].preferences
     if prefs.addon_location == 'TOPBAR':
-        bpy.types.TOPBAR_MT_editor_menus.append(popover)
+        bpy.types.TOPBAR_MT_editor_menus.append(draw_popover)
     if prefs.addon_location == '3DHEADER':
-        bpy.types.VIEW3D_MT_editor_menus.append(popover)
+        bpy.types.VIEW3D_MT_editor_menus.append(draw_popover)
     elif prefs.addon_location == '3DSIDE':
         bpy.utils.register_class(VIEW3D_PT_batch_export)
 
@@ -568,8 +582,8 @@ def unregister():
     bpy.utils.unregister_class(EXPORT_MESH_OT_batch)
 
     # Remove UI
-    bpy.types.TOPBAR_MT_editor_menus.remove(popover)
-    bpy.types.VIEW3D_MT_editor_menus.remove(popover)
+    bpy.types.TOPBAR_MT_editor_menus.remove(draw_popover)
+    bpy.types.VIEW3D_MT_editor_menus.remove(draw_popover)
     if hasattr(bpy.types, "VIEW3D_PT_batch_export"):
         bpy.utils.unregister_class(VIEW3D_PT_batch_export)
 

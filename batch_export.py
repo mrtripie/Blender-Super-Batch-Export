@@ -588,7 +588,7 @@ class BatchExportSettings(PropertyGroup):
             ('CAMERA', "Camera", "", 512),
         ],
         description="Which object types to export\n(NOT ALL FORMATS WILL SUPPORT THESE)",
-        default={'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'ARMATURE'},
+        default={'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'GPENCIL', 'ARMATURE'},
     )
 
     # Transform:

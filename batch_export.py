@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import AddonPreferences, PropertyGroup, Operator, Panel
-from bpy.props import PointerProperty, StringProperty, BoolProperty, EnumProperty, FloatVectorProperty
+from bpy.props import BoolProperty, IntProperty, EnumProperty, StringProperty, PointerProperty, FloatVectorProperty
 import os
 
 bl_info = {
@@ -101,7 +101,11 @@ def draw_settings(self, context):
     col = self.layout.column()
 
     col.label(text=settings.file_format + " Settings:")
-    if settings.file_format == 'DAE':
+    if settings.file_format == 'ABC':
+        col.prop(settings, 'abc_preset_enum')
+        col.prop(settings, 'frame_start')
+        col.prop(settings, 'frame_end')
+    elif settings.file_format == 'DAE':
         col.prop(settings, 'dae_preset_enum')
     elif settings.file_format == 'USD':
         col.prop(settings, 'usd_format')
@@ -119,7 +123,7 @@ def draw_settings(self, context):
     elif settings.file_format == 'X3D':
         col.prop(settings, 'x3d_preset_enum')
 
-    if settings.file_format != 'USD':
+    if settings.file_format != 'USD' and settings.file_format != 'ABC':
         self.layout.prop(settings, 'apply_mods')
 
     self.layout.use_property_split = False
@@ -148,7 +152,6 @@ def draw_popover(self, context):
     row.operator('export_mesh.batch', text='', icon='EXPORT')
     row.popover(panel='POPOVER_PT_batch_export', text='')
 
-
 # Side Panel panel (used with Side Panel option)
 class VIEW3D_PT_batch_export(Panel):
     bl_space_type = 'VIEW_3D'
@@ -158,7 +161,6 @@ class VIEW3D_PT_batch_export(Panel):
 
     def draw(self, context):
         draw_settings(self, context)
-
 
 # Popover panel (used on 3D Viewport Header or Top Bar option)
 class POPOVER_PT_batch_export(Panel):
@@ -322,7 +324,22 @@ class EXPORT_MESH_OT_batch(Operator):
         fp = os.path.join(base_dir, name)
 
         # Export
-        if settings.file_format == "DAE":
+        if settings.file_format == "ABC":
+            options = load_operator_preset(
+                'wm.alembic_export', settings.abc_preset)
+            options["filepath"] = fp+".abc"
+            options["selected"] = True
+            options["start"] = settings.frame_start
+            options["end"] = settings.frame_end
+            # By default, alembic_export operator runs in the background, this messes up batch
+            # export though. alembic_export has an "as_background_job" arg that can be set to
+            # false to disable it, but its marked deprecated, saying that if you EXECUTE the
+            # operator rather than INVOKE it it runs in the foreground. Here I change the
+            # execution context to EXEC_REGION_WIN.
+            # docs.blender.org/api/current/bpy.ops.html?highlight=exec_default#execution-context
+            bpy.ops.wm.alembic_export('EXEC_REGION_WIN', **options)
+
+        elif settings.file_format == "DAE":
             options = load_operator_preset(
                 'wm.collada_export', settings.dae_preset)
             options["filepath"] = fp
@@ -411,6 +428,7 @@ class BatchExportSettings(PropertyGroup):
         name="Format",
         description="Which file format to export to",
         items=[
+            ("ABC", "Alembic (.abc)", "", 0),
             ("DAE", "Collada (.dae)", "", 1),
             ("USD", "Universal Scene Description (.usd/.usdc/.usda)", "", 2),
             ("PLY", "Stanford (.ply)", "", 3),
@@ -457,7 +475,18 @@ class BatchExportSettings(PropertyGroup):
     )
     ply_ascii: BoolProperty(name="ASCII Format", default=False)
     stl_ascii: BoolProperty(name="ASCII Format", default=False)
+
     # Presets: A string property for saving your option (without new presets changing your choice), and enum property for choosing
+    abc_preset: StringProperty(default='NO_PRESET')
+    abc_preset_enum: EnumProperty(
+        name="Preset", options={'SKIP_SAVE'},
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Alembic (.abc))",
+        items=lambda self, context: get_operator_presets('wm.alembic_export'),
+        get=lambda self: get_preset_index(
+            'wm.alembic_export', self.abc_preset),
+        set=lambda self, value: setattr(
+            self, 'abc_preset', preset_enum_items_refs['wm.alembic_export'][value][0]),
+    )
     dae_preset: StringProperty(default='NO_PRESET')
     dae_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
@@ -519,6 +548,18 @@ class BatchExportSettings(PropertyGroup):
         name="Apply Modifiers",
         description="Should the modifiers by applied onto the exported mesh?\nCan't export Shape Keys with this on",
         default=True,
+    )
+    frame_start: IntProperty(
+        name="Frame Start",
+        min=0,
+        description="First frame to export",
+        default = 1,
+    )
+    frame_end: IntProperty(
+        name="Frame End",
+        min=0,
+        description="Last frame to export",
+        default = 1,
     )
     object_types: EnumProperty(
         name="Object Types",

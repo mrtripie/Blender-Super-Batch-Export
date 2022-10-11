@@ -96,6 +96,9 @@ def draw_settings(self, context):
     col.prop(settings, 'file_format')
     col.prop(settings, 'mode')
     col.prop(settings, 'limit')
+    if settings.mode != 'COLLECTIONS':
+        col.prop(settings, 'prefix_collection')
+
 
     self.layout.separator()
     col = self.layout.column()
@@ -249,19 +252,27 @@ class EXPORT_MESH_OT_batch(Operator):
                 if not obj.type in settings.object_types:
                     continue
                 bpy.ops.object.select_all(action='DESELECT')
+                export_name = obj.name
+                if settings.prefix_collection:
+                    colstring = '/'.join([x.name for x in obj.users_collection])
+                    export_name = colstring+'.'+export_name
                 obj.select_set(True)
-                self.export_selection(obj.name, context, base_dir)
+                self.export_selection(export_name, context, base_dir)
 
         elif settings.mode == 'OBJECT_PARENTS':
             for obj in objects:
                 if obj.parent:  # if it has a parent, skip it for now, it'll be exported when we get to its parent
                     continue
                 bpy.ops.object.select_all(action='DESELECT')
+                export_name = obj.name
+                if settings.prefix_collection:
+                    colstring = '/'.join([x.name for x in obj.users_collection])
+                    export_name = colstring+'.'+export_name
                 if obj.type in settings.object_types:
                     obj.select_set(True)
                 self.select_children_recursive(obj, context,)
                 if context.selected_objects:
-                    self.export_selection(obj.name, context, base_dir)
+                    self.export_selection(export_name, context, base_dir)
 
         elif settings.mode == 'COLLECTIONS':
             for col in bpy.data.collections.values():
@@ -434,6 +445,10 @@ class BatchExportSettings(PropertyGroup):
     suffix: StringProperty(
         name="Suffix",
         description="Text to put at the end of all the exported file names",
+    )
+    prefix_collection: BoolProperty(
+        name="Prepend Collection Name",
+        description="Adds the containing collection's name to the exported file's name, after the 'prefix'"
     )
 
     # Export Settings:
